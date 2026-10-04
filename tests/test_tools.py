@@ -10,7 +10,7 @@ from agent_eval.env.tools import (
 )
 
 
-# get_order: your tests go here. Part 6 of lesson 4 lists what to cover.
+# get_order
 
 def test_get_order_returns_its_details(city):
     assert get_order(city, "o1") == {
