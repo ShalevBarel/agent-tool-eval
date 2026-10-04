@@ -1,15 +1,8 @@
-"""The tools the agent can call.
+"""Tools the agent can call.
 
-Each tool is a plain Python function that knows nothing about the model.
-The first parameter is always the world. The agent loop fills it in, and
-the model never sees it. The other parameters are what the model sends.
-
-Tools return plain values: strings, numbers, booleans, and lists and dicts
-of them. The agent loop turns the result into text for the model.
-
-When the model sends arguments that make no sense, a tool raises ToolError.
-The agent loop sends the message back to the model, so the message has to
-say exactly what was wrong.
+Each tool takes the world as its first argument, supplied by the agent loop.
+The remaining arguments come from the model. Tools return JSON-serializable
+values and raise ToolError on invalid arguments.
 """
 
 from dataclasses import dataclass
@@ -18,69 +11,64 @@ from agent_eval.env.world import World
 
 
 class ToolError(Exception):
-    """The model called a tool with bad arguments. The message goes back to it."""
+    """Raised when the model calls a tool with invalid arguments."""
 
 
 @dataclass(frozen=True)
 class Answer:
-    """The agent's final answer: the order to deliver in, or that it can't be done."""
+    """The agent's final answer: the delivery order, or that there is no solution."""
 
     solvable: bool
     order_ids: list[str]
 
 
 def get_order(world: World, order_id: str) -> dict:
-    """Return the details of an order.
+    """Return an order's place and time window.
 
-    get_order(city, "o1") -> {"order_id": "o1", "place": "school",
-                              "window_start": 30, "window_end": 60}
+    Example:
+        {"order_id": "o1", "place": "school", "window_start": 30, "window_end": 60}
 
-    For an unknown id, raise ToolError("no order with id o9").
+    Raises:
+        ToolError: If no order has this id.
     """
     raise NotImplementedError
 
 
 def roads_from(world: World, place: str) -> list[dict]:
-    """Return the roads out of place, sorted by the place they lead to.
+    """Return the roads out of a place, sorted by destination.
 
-    Closed roads are included, marked with "open": False.
-    roads_from(city, "office") -> [
-        {"to": "market", "minutes": 30, "open": True},
-        {"to": "school", "minutes": 8, "open": False},
-        {"to": "warehouse", "minutes": 10, "open": True},
-    ]
+    Closed roads are included, with "open" set to False.
 
-    For an unknown place, raise ToolError("unknown place: mall").
+    Example item:
+        {"to": "market", "minutes": 30, "open": True}
+
+    Raises:
+        ToolError: If the place is unknown.
     """
     raise NotImplementedError
 
 
 def route_minutes(world: World, route: list[str]) -> int:
-    """Return how many minutes it takes to drive along route, stop by stop.
+    """Return the minutes it takes to drive a route, stop by stop.
 
-    route_minutes(city, ["warehouse", "office", "market"]) -> 40
-    A route with a single stop takes 0 minutes.
+    A route with a single stop takes 0 minutes. Every stop is checked
+    before any road, so an unknown place is reported first.
 
-    Check these in order, and raise ToolError with messages like:
-      empty route:                  "route is empty"
-      any stop unknown:             "unknown place: mall"
-      first road that is missing:   "no road from warehouse to bank"
-      first road that is closed:    "the road from office to school is closed today"
-    Check every stop before you check any road.
+    Raises:
+        ToolError: If the route is empty, a stop is unknown, or a road
+            on the route is missing or closed.
     """
     raise NotImplementedError
 
 
 def submit_answer(world: World, solvable: bool, order_ids: list[str]) -> Answer:
-    """Check the agent's final answer, and return it as an Answer.
+    """Validate the agent's final answer and return it.
 
-    solvable is False when no order of deliveries works, and then order_ids
-    must be empty. Otherwise order_ids is the order to deliver in.
+    order_ids is the delivery order. It must be empty when solvable is
+    False, and non-empty when solvable is True.
 
-    Check these in order, and raise ToolError with messages like:
-      solvable, but no orders:      "a solvable answer must list the orders to deliver"
-      not solvable, but orders:     "an answer of no solution must not list orders"
-      unknown id:                   "no order with id o9"
-      same id twice:                "order o1 appears more than once"
+    Raises:
+        ToolError: If order_ids doesn't match solvable, names an unknown
+            order, or lists an order twice.
     """
     raise NotImplementedError

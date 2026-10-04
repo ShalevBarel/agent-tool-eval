@@ -1,6 +1,6 @@
 """The world the agent works in: places, one-way roads, closures and orders.
 
-Minutes count from the start of the working day, so minute 90 is 01:30.
+Times are whole minutes from the start of the working day.
 """
 
 from dataclasses import dataclass, field
@@ -8,41 +8,47 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class TimeWindow:
-    """The minutes in which an order may arrive, from start to end, both included.
+    """An inclusive range of minutes in which a delivery may arrive.
 
-    Check these in order when a window is created, and raise ValueError:
-      start below 0:      "a window cannot start before minute 0"
-      start after end:    "start must not be after end"
+    Raises:
+        ValueError: If start is negative or after end.
     """
 
-    # Add two int fields here: start and end.
+    start: int
+    end: int
 
     def __post_init__(self) -> None:
-        raise NotImplementedError
+        if self.start < 0:
+            raise ValueError("a window cannot start before minute 0")
+        if self.start > self.end:
+            raise ValueError("start must not be after end")
 
     def contains(self, minute: int) -> bool:
-        """Return True if minute is inside the window."""
-        raise NotImplementedError
+        """Return whether minute falls inside the window."""
+        return self.start <= minute <= self.end
 
 
 @dataclass(frozen=True)
 class Order:
     """A delivery to a place, which must arrive inside its time window."""
 
-    # Add three fields here: order_id (a str), place (a str), and window (a TimeWindow).
+    order_id: str
+    place: str
+    window: TimeWindow
 
 
 @dataclass
 class World:
     """A road network, today's road closures, and the orders waiting for delivery.
 
-    roads maps each place to the places you can drive to from it,
-    and how many minutes each drive takes. Roads are one-way.
-    closed holds the roads that are closed today, as (start, end) pairs.
-    orders maps an order id to its Order.
+    Attributes:
+        roads: For each place, the places reachable from it by a one-way
+            road, and the minutes each road takes.
+        closed: Roads closed today, as (start, end) pairs.
+        orders: Orders by id.
 
-    The methods below raise ValueError on bad input. That means a bug in
-    our own code, such as the task generator, and not a mistake by the model.
+    Invalid input raises ValueError. It signals a bug in the calling code,
+    such as the task generator, not a mistake by the model.
     """
 
     roads: dict[str, dict[str, int]] = field(default_factory=dict)
@@ -50,38 +56,59 @@ class World:
     orders: dict[str, Order] = field(default_factory=dict)
 
     def add_place(self, place: str) -> None:
-        """Add a place, with no roads out of it yet.
+        """Add a place with no roads out of it.
 
-        If the place exists, raise ValueError("place warehouse already exists").
+        Raises:
+            ValueError: If the place already exists.
         """
-        raise NotImplementedError
+        if place in self.roads:
+            raise ValueError(f"place {place} already exists")
+
+        self.roads[place] = {}
 
     def add_road(self, start: str, end: str, minutes: int) -> None:
         """Add a one-way road from start to end.
 
-        Check these in order, and raise ValueError with messages like:
-          start or end unknown:   "unknown place: mall"
-          minutes below 1:        "a road must take at least 1 minute"
-          road already there:     "road from warehouse to office already exists"
+        Raises:
+            ValueError: If either place is unknown, minutes is below 1,
+                or the road already exists.
         """
-        raise NotImplementedError
+        if start not in self.roads:
+            raise ValueError(f"unknown place: {start}")
+        if end not in self.roads:
+            raise ValueError(f"unknown place: {end}")
+        if minutes < 1:
+             raise ValueError("a road must take at least 1 minute")
+        if end in self.roads[start]:
+            raise ValueError(f"road from {start} to {end} already exists")
+
+        self.roads[start][end] = minutes
 
     def close_road(self, start: str, end: str) -> None:
         """Mark the road from start to end as closed today.
 
-        If there is no such road, raise ValueError("no road from warehouse to bank").
+        Raises:
+            ValueError: If there is no such road.
         """
-        raise NotImplementedError
+        if end not in self.roads.get(start, {}):
+            raise ValueError(f"no road from {start} to {end}")
+        
+        self.closed.add((start, end))
+        
 
     def is_open(self, start: str, end: str) -> bool:
-        """Return True if there is a road from start to end, and it isn't closed."""
-        raise NotImplementedError
+        """Return whether a road from start to end exists and is open today."""
+        return (end in self.roads.get(start, {})) and ((start, end) not in self.closed)
 
     def add_order(self, order: Order) -> None:
         """Add an order.
 
-        Check these in order, and raise ValueError with messages like:
-          id taken:           "order o1 already exists"
-          place unknown:      "unknown place: mall"
+        Raises:
+            ValueError: If the order id is taken or the place is unknown.
         """
-        raise NotImplementedError
+        if order.order_id in self.orders:
+            raise ValueError(f"order {order.order_id} already exists")
+        if order.place not in self.roads:
+            raise ValueError(f"unknown place: {order.place}")
+
+        self.orders[order.order_id] = order
