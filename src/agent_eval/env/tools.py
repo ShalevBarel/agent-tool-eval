@@ -31,7 +31,16 @@ def get_order(world: World, order_id: str) -> dict:
     Raises:
         ToolError: If no order has this id.
     """
-    raise NotImplementedError
+    if order_id not in world.orders:
+        raise ToolError(f"no order with id {order_id}")
+    
+    order = world.orders[order_id]
+    return {
+        "order_id": order.order_id,
+        "place": order.place,
+        "window_start": order.window.start,
+        "window_end": order.window.end,
+    }
 
 
 def roads_from(world: World, place: str) -> list[dict]:
@@ -45,7 +54,14 @@ def roads_from(world: World, place: str) -> list[dict]:
     Raises:
         ToolError: If the place is unknown.
     """
-    raise NotImplementedError
+    if place not in world.roads:
+        raise ToolError(f"unknown place: {place}")
+
+    roads_from_place = []
+    for dest, time in sorted(world.roads[place].items()):
+        roads_from_place.append({"to": dest, "minutes": time, "open": world.is_open(place, dest)})
+
+    return roads_from_place
 
 
 def route_minutes(world: World, route: list[str]) -> int:
@@ -58,7 +74,25 @@ def route_minutes(world: World, route: list[str]) -> int:
         ToolError: If the route is empty, a stop is unknown, or a road
             on the route is missing or closed.
     """
-    raise NotImplementedError
+    if not route:
+        raise ToolError("route is empty")
+    for place in route:
+        if place not in world.roads:
+            raise ToolError(f"unknown place: {place}")
+
+    total = 0
+    for i in range(len(route) - 1):
+        start = route[i]
+        end = route[i + 1]
+
+        if end not in world.roads[start]:
+            raise ToolError(f"no road from {start} to {end}")
+        if not world.is_open(start, end):
+            raise ToolError(f"the road from {start} to {end} is closed today")
+        
+        total += world.roads[start][end]
+
+    return total
 
 
 def submit_answer(world: World, solvable: bool, order_ids: list[str]) -> Answer:
@@ -71,4 +105,16 @@ def submit_answer(world: World, solvable: bool, order_ids: list[str]) -> Answer:
         ToolError: If order_ids doesn't match solvable, names an unknown
             order, or lists an order twice.
     """
-    raise NotImplementedError
+    if solvable and not order_ids:
+        raise ToolError("a solvable answer must list the orders to deliver")
+    if not solvable and order_ids:
+        raise ToolError("an answer of no solution must not list orders")
+    seen = set()
+    for order_id in order_ids:
+        if order_id not in world.orders:
+            raise ToolError(f"no order with id {order_id}")
+        if order_id in seen:
+            raise ToolError(f"order {order_id} appears more than once")
+        seen.add(order_id)
+
+    return Answer(solvable, order_ids)

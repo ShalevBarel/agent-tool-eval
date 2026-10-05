@@ -20,6 +20,21 @@ def test_get_order_returns_its_details(city):
         "window_end": 60,
     }
 
+def test_get_another_order_returns_its_details(city):
+    assert get_order(city, "o3") == {
+            "order_id": "o3",
+            "place": "bank",
+            "window_start": 90,
+            "window_end": 120,
+    }
+
+def test_correct_error(city):
+    with pytest.raises(ToolError, match="no order with id o9"):
+        get_order(city, "o9")
+
+def test_letter_sensitive(city):
+    with pytest.raises(ToolError, match="no order with id O1"):
+        get_order(city, "O1")
 
 # roads_from
 
