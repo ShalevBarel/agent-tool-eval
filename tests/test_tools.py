@@ -24,17 +24,17 @@ def test_get_order_returns_its_details(city):
 
 def test_get_another_order_returns_its_details(city):
     assert get_order(city, "o3") == {
-            "order_id": "o3",
-            "place": "bank",
-            "window_start": 90,
-            "window_end": 120,
+        "order_id": "o3",
+        "place": "bank",
+        "window_start": 90,
+        "window_end": 120,
     }
 
-def test_correct_error(city):
+def test_get_unknown_order_fails(city):
     with pytest.raises(ToolError, match="no order with id o9"):
         get_order(city, "o9")
 
-def test_letter_sensitive(city):
+def test_order_ids_are_case_sensitive(city):
     with pytest.raises(ToolError, match="no order with id O1"):
         get_order(city, "O1")
 

@@ -82,7 +82,7 @@ class World:
         if end not in self.roads:
             raise ValueError(f"unknown place: {end}")
         if minutes < 1:
-             raise ValueError("a road must take at least 1 minute")
+            raise ValueError("a road must take at least 1 minute")
         if end in self.roads[start]:
             raise ValueError(f"road from {start} to {end} already exists")
 
@@ -96,9 +96,8 @@ class World:
         """
         if end not in self.roads.get(start, {}):
             raise ValueError(f"no road from {start} to {end}")
-        
+
         self.closed.add((start, end))
-        
 
     def is_open(self, start: str, end: str) -> bool:
         """Return whether a road from start to end exists and is open today."""
@@ -123,4 +122,10 @@ class World:
         Raises:
             ValueError: If the place is unknown or minute is negative.
         """
-        raise NotImplementedError
+        if place not in self.roads:
+            raise ValueError(f"unknown place: {place}")
+        if minute < 0:
+            raise ValueError("the courier cannot start before minute 0")
+
+        self.start = place
+        self.start_minute = minute
