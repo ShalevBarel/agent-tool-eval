@@ -7,6 +7,8 @@ values and raise ToolError on invalid arguments.
 
 from dataclasses import dataclass
 
+from agent_eval.env.routing import fastest_route, travel_minutes
+from agent_eval.env.schedule import simulate
 from agent_eval.env.world import World
 
 
@@ -93,6 +95,47 @@ def route_minutes(world: World, route: list[str]) -> int:
         total += world.roads[start][end]
 
     return total
+
+
+def shortest_route(world: World, start: str, end: str) -> dict:
+    """Return the fastest open route from start to end, and its minutes.
+
+    Closed roads are never used. If end can't be reached, "reachable" is
+    False, "route" is empty and "minutes" is None.
+
+    Example:
+        {"reachable": True, "route": ["warehouse", "school", "market"], "minutes": 37}
+
+    Raises:
+        ToolError: If start or end is unknown. Start is checked first.
+    """
+    raise NotImplementedError
+
+
+def check_schedule(world: World, order_ids: list[str]) -> dict:
+    """Drive a delivery order from the courier's start and report every stop.
+
+    The courier takes the fastest open route to each order, and waits if it
+    arrives before the window opens. Checking stops at the first order that
+    can't be reached or would arrive late, and "problem" says which. The
+    orders may be just the first part of a full delivery order.
+
+    Example:
+        {
+            "on_time": True,
+            "finish_minute": 42,
+            "problem": None,
+            "stops": [
+                {"order_id": "o1", "place": "school", "arrival": 25, "delivery": 30},
+                {"order_id": "o2", "place": "market", "arrival": 42, "delivery": 42},
+            ],
+        }
+
+    Raises:
+        ToolError: If order_ids is empty, names an unknown order, or lists
+            an order twice.
+    """
+    raise NotImplementedError
 
 
 def submit_answer(world: World, solvable: bool, order_ids: list[str]) -> Answer:

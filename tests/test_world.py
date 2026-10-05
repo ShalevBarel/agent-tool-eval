@@ -48,6 +48,8 @@ def test_new_world_is_empty():
     assert world.roads == {}
     assert world.closed == set()
     assert world.orders == {}
+    assert world.start is None
+    assert world.start_minute == 0
 
 
 def test_add_place():
@@ -146,6 +148,32 @@ def test_add_order_to_unknown_place_fails(city):
         city.add_order(Order("o5", "mall", TimeWindow(0, 30)))
 
 
+# World: the courier's start
+
+def test_set_start():
+    world = World()
+    world.add_place("warehouse")
+    world.set_start("warehouse", 30)
+    assert world.start == "warehouse"
+    assert world.start_minute == 30
+
+
+def test_set_start_again_replaces_it(city):
+    city.set_start("school", 15)
+    assert city.start == "school"
+    assert city.start_minute == 15
+
+
+def test_start_at_unknown_place_fails(city):
+    with pytest.raises(ValueError, match="unknown place: mall"):
+        city.set_start("mall", 0)
+
+
+def test_courier_cannot_start_before_minute_zero(city):
+    with pytest.raises(ValueError, match="the courier cannot start before minute 0"):
+        city.set_start("warehouse", -1)
+
+
 # The test city itself
 
 def test_city_has_what_the_lesson_shows(city):
@@ -155,3 +183,5 @@ def test_city_has_what_the_lesson_shows(city):
     assert sum(len(ends) for ends in city.roads.values()) == 12
     assert city.closed == {("office", "school")}
     assert sorted(city.orders) == ["o1", "o2", "o3", "o4"]
+    assert city.start == "warehouse"
+    assert city.start_minute == 0

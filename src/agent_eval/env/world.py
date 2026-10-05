@@ -39,13 +39,15 @@ class Order:
 
 @dataclass
 class World:
-    """A road network, today's road closures, and the orders waiting for delivery.
+    """A road network, today's closures, the orders waiting, and the courier's start.
 
     Attributes:
         roads: For each place, the places reachable from it by a one-way
             road, and the minutes each road takes.
         closed: Roads closed today, as (start, end) pairs.
         orders: Orders by id.
+        start: The place the courier starts from, or None until it is set.
+        start_minute: The minute the courier starts.
 
     Invalid input raises ValueError. It signals a bug in the calling code,
     such as the task generator, not a mistake by the model.
@@ -54,6 +56,8 @@ class World:
     roads: dict[str, dict[str, int]] = field(default_factory=dict)
     closed: set[tuple[str, str]] = field(default_factory=set)
     orders: dict[str, Order] = field(default_factory=dict)
+    start: str | None = None
+    start_minute: int = 0
 
     def add_place(self, place: str) -> None:
         """Add a place with no roads out of it.
@@ -112,3 +116,11 @@ class World:
             raise ValueError(f"unknown place: {order.place}")
 
         self.orders[order.order_id] = order
+
+    def set_start(self, place: str, minute: int) -> None:
+        """Set where and when the courier starts.
+
+        Raises:
+            ValueError: If the place is unknown or minute is negative.
+        """
+        raise NotImplementedError

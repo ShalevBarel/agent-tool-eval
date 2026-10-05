@@ -3,9 +3,11 @@ import pytest
 from agent_eval.env.tools import (
     Answer,
     ToolError,
+    check_schedule,
     get_order,
     roads_from,
     route_minutes,
+    shortest_route,
     submit_answer,
 )
 
@@ -98,6 +100,115 @@ def test_route_on_closed_road_fails(city):
 def test_route_reports_the_first_bad_road(city):
     with pytest.raises(ToolError, match="no road from warehouse to bank"):
         route_minutes(city, ["warehouse", "bank", "gas station"])
+
+
+# shortest_route
+
+def test_shortest_route_to_the_market(city):
+    assert shortest_route(city, "warehouse", "market") == {
+        "reachable": True,
+        "route": ["warehouse", "school", "market"],
+        "minutes": 37,
+    }
+
+
+def test_shortest_route_avoids_the_closed_road(city):
+    assert shortest_route(city, "office", "school") == {
+        "reachable": True,
+        "route": ["office", "warehouse", "school"],
+        "minutes": 35,
+    }
+
+
+def test_shortest_route_to_the_same_place(city):
+    assert shortest_route(city, "school", "school") == {
+        "reachable": True,
+        "route": ["school"],
+        "minutes": 0,
+    }
+
+
+def test_shortest_route_to_unreachable_place_is_not_an_error(city):
+    assert shortest_route(city, "warehouse", "gas station") == {
+        "reachable": False,
+        "route": [],
+        "minutes": None,
+    }
+
+
+def test_shortest_route_from_unknown_place_fails(city):
+    with pytest.raises(ToolError, match="unknown place: mall"):
+        shortest_route(city, "mall", "school")
+
+
+def test_shortest_route_to_unknown_place_fails(city):
+    with pytest.raises(ToolError, match="unknown place: mall"):
+        shortest_route(city, "school", "mall")
+
+
+def test_shortest_route_checks_the_start_first(city):
+    with pytest.raises(ToolError, match="unknown place: mall"):
+        shortest_route(city, "mall", "park")
+
+
+# check_schedule
+
+def test_check_schedule_of_the_worked_example(city):
+    assert check_schedule(city, ["o1", "o2"]) == {
+        "on_time": True,
+        "finish_minute": 42,
+        "problem": None,
+        "stops": [
+            {"order_id": "o1", "place": "school", "arrival": 25, "delivery": 30},
+            {"order_id": "o2", "place": "market", "arrival": 42, "delivery": 42},
+        ],
+    }
+
+
+def test_check_the_first_part_of_a_delivery_order(city):
+    assert check_schedule(city, ["o2"]) == {
+        "on_time": True,
+        "finish_minute": 37,
+        "problem": None,
+        "stops": [
+            {"order_id": "o2", "place": "market", "arrival": 37, "delivery": 37},
+        ],
+    }
+
+
+def test_check_schedule_with_a_late_order(city):
+    assert check_schedule(city, ["o3", "o1"]) == {
+        "on_time": False,
+        "finish_minute": None,
+        "problem": "order o1 arrives at minute 155, after its window closes at 60",
+        "stops": [
+            {"order_id": "o3", "place": "bank", "arrival": 44, "delivery": 90},
+        ],
+    }
+
+
+def test_check_schedule_with_an_unreachable_order(city):
+    assert check_schedule(city, ["o4"]) == {
+        "on_time": False,
+        "finish_minute": None,
+        "problem": "order o4 can't be reached from warehouse",
+        "stops": [],
+    }
+
+
+def test_check_schedule_of_no_orders_fails(city):
+    with pytest.raises(ToolError, match="no orders to check"):
+        check_schedule(city, [])
+
+
+def test_check_schedule_with_unknown_order_fails(city):
+    with pytest.raises(ToolError, match="no order with id o9"):
+        check_schedule(city, ["o1", "o9"])
+
+
+def test_check_schedule_with_the_same_order_twice_fails(city):
+    with pytest.raises(ToolError, match="order o1 appears more than once"):
+        check_schedule(city, ["o1", "o2", "o1"])
 
 
 # submit_answer
