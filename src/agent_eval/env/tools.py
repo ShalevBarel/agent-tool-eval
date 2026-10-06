@@ -35,7 +35,7 @@ def get_order(world: World, order_id: str) -> dict:
     """
     if order_id not in world.orders:
         raise ToolError(f"no order with id {order_id}")
-    
+
     order = world.orders[order_id]
     return {
         "order_id": order.order_id,
@@ -91,7 +91,7 @@ def route_minutes(world: World, route: list[str]) -> int:
             raise ToolError(f"no road from {start} to {end}")
         if not world.is_open(start, end):
             raise ToolError(f"the road from {start} to {end} is closed today")
-        
+
         total += world.roads[start][end]
 
     return total
@@ -109,7 +109,16 @@ def shortest_route(world: World, start: str, end: str) -> dict:
     Raises:
         ToolError: If start or end is unknown. Start is checked first.
     """
-    raise NotImplementedError
+    if start not in world.roads:
+        raise ToolError(f"unknown place: {start}")
+    if end not in world.roads:
+        raise ToolError(f"unknown place: {end}")
+
+    found = fastest_route(world, start, end)
+    if found is None:
+        return {"reachable": False, "route": [], "minutes": None}
+    route, minutes = found
+    return {"reachable": True, "route": route, "minutes": minutes}
 
 
 def check_schedule(world: World, order_ids: list[str]) -> dict:
@@ -135,7 +144,31 @@ def check_schedule(world: World, order_ids: list[str]) -> dict:
         ToolError: If order_ids is empty, names an unknown order, or lists
             an order twice.
     """
-    raise NotImplementedError
+    if not order_ids:
+        raise ToolError("no orders to check")
+    _check_order_ids(world, order_ids)
+
+    places = [world.start] + [world.orders[order_id].place for order_id in order_ids]
+    schedule = simulate(world, travel_minutes(world, places), order_ids)
+
+    stops = []
+    for stop in schedule.stops:
+        stops.append({
+            "order_id": stop.order_id,
+            "place": stop.place,
+            "arrival": stop.arrival,
+            "delivery": stop.delivery
+        })
+    if schedule.problem is None:
+        finish_minute = schedule.stops[-1].delivery
+    else:
+        finish_minute = None
+    return {
+        "on_time": schedule.problem is None,
+        "finish_minute": finish_minute,
+        "problem": schedule.problem,
+        "stops": stops
+    }
 
 
 def submit_answer(world: World, solvable: bool, order_ids: list[str]) -> Answer:
@@ -152,6 +185,12 @@ def submit_answer(world: World, solvable: bool, order_ids: list[str]) -> Answer:
         raise ToolError("a solvable answer must list the orders to deliver")
     if not solvable and order_ids:
         raise ToolError("an answer of no solution must not list orders")
+    _check_order_ids(world, order_ids)
+
+    return Answer(solvable, order_ids)
+
+def _check_order_ids(world: World, order_ids: list[str]) -> None:
+    """Raise ToolError if order_ids names an unknown order or lists an order twice."""
     seen = set()
     for order_id in order_ids:
         if order_id not in world.orders:
@@ -159,5 +198,3 @@ def submit_answer(world: World, solvable: bool, order_ids: list[str]) -> Answer:
         if order_id in seen:
             raise ToolError(f"order {order_id} appears more than once")
         seen.add(order_id)
-
-    return Answer(solvable, order_ids)
