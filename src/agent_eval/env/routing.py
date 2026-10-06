@@ -16,7 +16,39 @@ def dijkstra(world: World, source: str) -> tuple[dict[str, int], dict[str, str]]
     Raises:
         ValueError: If source is unknown.
     """
-    raise NotImplementedError
+    # Check for error:
+    if source not in world.roads:
+        raise ValueError(f"unknown place: {source}")
+
+    # Initiate values:
+    distances = {}
+    previous = {}
+    for place in world.roads:
+        distances[place] = float('inf')
+        previous[place] = None
+    distances[source] = 0
+    queue = [(0, source)]
+
+    # The value update loop:
+    while queue:
+        curr_dist, curr_place = heapq.heappop(queue)
+        if curr_dist > distances[curr_place]:
+            continue
+
+        for neighbor in world.roads[curr_place]:
+            if not world.is_open(curr_place, neighbor):
+                continue
+            # Relax method
+            if curr_dist + world.roads[curr_place][neighbor] < distances[neighbor]:
+                distances[neighbor] = curr_dist + world.roads[curr_place][neighbor]
+                previous[neighbor] = curr_place
+                heapq.heappush(queue, (distances[neighbor], neighbor))
+
+    # Filter dicts to only reachable places
+    final_distances = {k: v for k, v in distances.items() if v != float('inf')}
+    final_previous = {k: v for k, v in previous.items() if v is not None}
+
+    return final_distances, final_previous
 
 
 def fastest_route(world: World, start: str, end: str) -> tuple[list[str], int] | None:
@@ -28,7 +60,20 @@ def fastest_route(world: World, start: str, end: str) -> tuple[list[str], int] |
     Raises:
         ValueError: If start or end is unknown. Start is checked first.
     """
-    raise NotImplementedError
+    if start not in world.roads:
+        raise ValueError(f"unknown place: {start}")
+    if end not in world.roads:
+        raise ValueError(f"unknown place: {end}")
+
+    distances, previous = dijkstra(world, start)
+    if end not in distances:
+        return None
+
+    route = [end]
+    while route[-1] != start:
+        route.append(previous[route[-1]])
+    route.reverse()
+    return route, distances[end]
 
 
 def travel_minutes(world: World, places: list[str]) -> dict[str, dict[str, int]]:
@@ -37,4 +82,9 @@ def travel_minutes(world: World, places: list[str]) -> dict[str, dict[str, int]]
     Raises:
         ValueError: If a place is unknown.
     """
-    raise NotImplementedError
+    travel = {}
+    for place in places:
+        distances, _ = dijkstra(world, place)
+        travel[place] = distances
+    return travel
+
