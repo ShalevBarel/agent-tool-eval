@@ -17,4 +17,19 @@ def solve(world: World, order_ids: list[str]) -> Solution | None:
     Raises:
         ValueError: If order_ids is empty.
     """
-    raise NotImplementedError
+    if not order_ids:
+        raise ValueError("no orders to deliver")
+
+    places = [world.start] + [world.orders[order_id].place for order_id in order_ids]
+    travel = travel_minutes(world, places)
+
+    best = None
+    for candidate in permutations(order_ids):
+        schedule = simulate(world, travel, list(candidate))
+        if schedule.problem is not None:
+            continue
+        finish = schedule.stops[-1].delivery
+        if best is None or finish < best.finish_minute:
+            best = Solution(list(candidate), finish)
+
+    return best

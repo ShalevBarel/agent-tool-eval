@@ -20,7 +20,7 @@ def dijkstra(world: World, source: str) -> tuple[dict[str, int], dict[str, str]]
     if source not in world.roads:
         raise ValueError(f"unknown place: {source}")
 
-    # Initiate values:
+    # Initialize values:
     distances = {}
     previous = {}
     for place in world.roads:
@@ -87,4 +87,3 @@ def travel_minutes(world: World, places: list[str]) -> dict[str, dict[str, int]]
         distances, _ = dijkstra(world, place)
         travel[place] = distances
     return travel
-

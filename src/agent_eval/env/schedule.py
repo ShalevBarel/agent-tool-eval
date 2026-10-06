@@ -40,4 +40,18 @@ def simulate(world: World, travel: dict[str, dict[str, int]], order_ids: list[st
     travel holds the fastest minutes between places, as returned by
     travel_minutes. It must cover the courier's start and every order's place.
     """
-    raise NotImplementedError
+    place = world.start
+    minute = world.start_minute
+    stops = []
+    for order_id in order_ids:
+        order = world.orders[order_id]
+        if order.place not in travel[place]:
+            return Schedule(stops, f"order {order_id} can't be reached from {place}")
+        arrival = minute + travel[place][order.place]
+        if arrival > order.window.end:
+            return Schedule(stops, f"order {order_id} arrives at minute {arrival}, after its window closes at {order.window.end}")
+        delivery = max(arrival, order.window.start)
+        stops.append(Stop(order_id, order.place, arrival, delivery))
+        place = order.place
+        minute = delivery
+    return Schedule(stops, None)
