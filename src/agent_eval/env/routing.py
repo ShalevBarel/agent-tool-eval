@@ -16,20 +16,17 @@ def dijkstra(world: World, source: str) -> tuple[dict[str, int], dict[str, str]]
     Raises:
         ValueError: If source is unknown.
     """
-    # Check for error:
     if source not in world.roads:
         raise ValueError(f"unknown place: {source}")
 
-    # Initialize values:
     distances = {}
     previous = {}
     for place in world.roads:
-        distances[place] = float('inf')
+        distances[place] = float("inf")
         previous[place] = None
     distances[source] = 0
     queue = [(0, source)]
 
-    # The value update loop:
     while queue:
         curr_dist, curr_place = heapq.heappop(queue)
         if curr_dist > distances[curr_place]:
@@ -45,7 +42,7 @@ def dijkstra(world: World, source: str) -> tuple[dict[str, int], dict[str, str]]
                 heapq.heappush(queue, (distances[neighbor], neighbor))
 
     # Filter dicts to only reachable places
-    final_distances = {k: v for k, v in distances.items() if v != float('inf')}
+    final_distances = {k: v for k, v in distances.items() if v != float("inf")}
     final_previous = {k: v for k, v in previous.items() if v is not None}
 
     return final_distances, final_previous

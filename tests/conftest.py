@@ -48,8 +48,36 @@ def travel() -> dict[str, dict[str, int]]:
     courier can reach. A place missing from a row can't be reached from it.
     """
     return {
-        "warehouse": {"warehouse": 0, "office": 10, "school": 25, "restaurant": 25, "market": 37, "bank": 44},
-        "school": {"school": 0, "market": 12, "bank": 19, "restaurant": 34, "warehouse": 59, "office": 69},
-        "market": {"market": 0, "bank": 7, "school": 12, "restaurant": 22, "warehouse": 47, "office": 57},
-        "bank": {"bank": 0, "restaurant": 15, "warehouse": 40, "office": 50, "school": 65, "market": 77},
+        "warehouse": {
+            "warehouse": 0,
+            "office": 10,
+            "school": 25,
+            "restaurant": 25,
+            "market": 37,
+            "bank": 44,
+        },
+        "school": {
+            "school": 0,
+            "market": 12,
+            "bank": 19,
+            "restaurant": 34,
+            "warehouse": 59,
+            "office": 69,
+        },
+        "market": {
+            "market": 0,
+            "bank": 7,
+            "school": 12,
+            "restaurant": 22,
+            "warehouse": 47,
+            "office": 57,
+        },
+        "bank": {
+            "bank": 0,
+            "restaurant": 15,
+            "warehouse": 40,
+            "office": 50,
+            "school": 65,
+            "market": 77,
+        },
     }

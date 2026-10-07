@@ -49,7 +49,11 @@ def simulate(world: World, travel: dict[str, dict[str, int]], order_ids: list[st
             return Schedule(stops, f"order {order_id} can't be reached from {place}")
         arrival = minute + travel[place][order.place]
         if arrival > order.window.end:
-            return Schedule(stops, f"order {order_id} arrives at minute {arrival}, after its window closes at {order.window.end}")
+            return Schedule(
+                stops,
+                f"order {order_id} arrives at minute {arrival}, after "
+                f"its window closes at {order.window.end}",
+            )
         delivery = max(arrival, order.window.start)
         stops.append(Stop(order_id, order.place, arrival, delivery))
         place = order.place

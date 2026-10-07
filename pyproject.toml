@@ -20,4 +20,12 @@ build-backend = "uv_build"
 dev = [
     "networkx>=3.7",
     "pytest>=9.1.1",
+    "ruff>=0.16.10",
 ]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]

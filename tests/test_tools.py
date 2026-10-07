@@ -11,8 +11,8 @@ from agent_eval.env.tools import (
     submit_answer,
 )
 
-
 # get_order
+
 
 def test_get_order_returns_its_details(city):
     assert get_order(city, "o1") == {
@@ -22,6 +22,7 @@ def test_get_order_returns_its_details(city):
         "window_end": 60,
     }
 
+
 def test_get_another_order_returns_its_details(city):
     assert get_order(city, "o3") == {
         "order_id": "o3",
@@ -30,15 +31,19 @@ def test_get_another_order_returns_its_details(city):
         "window_end": 120,
     }
 
+
 def test_get_unknown_order_fails(city):
     with pytest.raises(ToolError, match="no order with id o9"):
         get_order(city, "o9")
+
 
 def test_order_ids_are_case_sensitive(city):
     with pytest.raises(ToolError, match="no order with id O1"):
         get_order(city, "O1")
 
+
 # roads_from
+
 
 def test_roads_from_lists_roads_sorted(city):
     assert roads_from(city, "office") == [
@@ -60,12 +65,16 @@ def test_roads_from_unknown_place_fails(city):
 
 # route_minutes
 
+
 def test_route_minutes_adds_up_the_roads(city):
     assert route_minutes(city, ["warehouse", "office", "market"]) == 40
 
 
 def test_route_minutes_of_a_longer_route(city):
-    assert route_minutes(city, ["warehouse", "school", "market", "bank", "restaurant", "warehouse"]) == 84
+    assert (
+        route_minutes(city, ["warehouse", "school", "market", "bank", "restaurant", "warehouse"])
+        == 84
+    )
 
 
 def test_route_with_a_single_stop_takes_no_time(city):
@@ -103,6 +112,7 @@ def test_route_reports_the_first_bad_road(city):
 
 
 # shortest_route
+
 
 def test_shortest_route_to_the_market(city):
     assert shortest_route(city, "warehouse", "market") == {
@@ -152,6 +162,7 @@ def test_shortest_route_checks_the_start_first(city):
 
 
 # check_schedule
+
 
 def test_check_schedule_of_the_worked_example(city):
     assert check_schedule(city, ["o1", "o2"]) == {
@@ -212,6 +223,7 @@ def test_check_schedule_with_the_same_order_twice_fails(city):
 
 
 # submit_answer
+
 
 def test_submit_a_delivery_order(city):
     answer = submit_answer(city, True, ["o2", "o1"])

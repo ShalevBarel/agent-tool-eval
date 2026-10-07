@@ -153,12 +153,14 @@ def check_schedule(world: World, order_ids: list[str]) -> dict:
 
     stops = []
     for stop in schedule.stops:
-        stops.append({
-            "order_id": stop.order_id,
-            "place": stop.place,
-            "arrival": stop.arrival,
-            "delivery": stop.delivery
-        })
+        stops.append(
+            {
+                "order_id": stop.order_id,
+                "place": stop.place,
+                "arrival": stop.arrival,
+                "delivery": stop.delivery,
+            }
+        )
     if schedule.problem is None:
         finish_minute = schedule.stops[-1].delivery
     else:
@@ -167,7 +169,7 @@ def check_schedule(world: World, order_ids: list[str]) -> dict:
         "on_time": schedule.problem is None,
         "finish_minute": finish_minute,
         "problem": schedule.problem,
-        "stops": stops
+        "stops": stops,
     }
 
 
@@ -188,6 +190,7 @@ def submit_answer(world: World, solvable: bool, order_ids: list[str]) -> Answer:
     _check_order_ids(world, order_ids)
 
     return Answer(solvable, order_ids)
+
 
 def _check_order_ids(world: World, order_ids: list[str]) -> None:
     """Raise ToolError if order_ids names an unknown order or lists an order twice."""

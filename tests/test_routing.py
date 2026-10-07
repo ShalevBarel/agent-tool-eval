@@ -2,8 +2,8 @@ import pytest
 
 from agent_eval.env.routing import dijkstra, fastest_route, travel_minutes
 
-
 # dijkstra
+
 
 def test_dijkstra_minutes_from_the_warehouse(city):
     minutes, _ = dijkstra(city, "warehouse")
@@ -62,6 +62,7 @@ def test_dijkstra_from_unknown_place_fails(city):
 
 # fastest_route
 
+
 def test_fastest_route_to_the_bank(city):
     assert fastest_route(city, "warehouse", "bank") == (
         ["warehouse", "school", "market", "bank"],
@@ -95,6 +96,7 @@ def test_fastest_route_checks_the_start_first(city):
 
 
 # travel_minutes
+
 
 def test_travel_minutes_match_the_table_worked_out_by_hand(city, travel):
     assert travel_minutes(city, ["warehouse", "school", "market", "bank"]) == travel
