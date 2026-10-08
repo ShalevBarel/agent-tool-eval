@@ -12,21 +12,7 @@ import pytest
 from agent_eval.env.routing import dijkstra, fastest_route
 from agent_eval.env.tools import route_minutes
 from agent_eval.env.world import World
-
-
-def random_world(rng: random.Random) -> World:
-    """A world with up to 12 places, random one-way roads, and some of them closed."""
-    world = World()
-    places = [f"p{i}" for i in range(rng.randint(1, 12))]
-    for place in places:
-        world.add_place(place)
-    for start in places:
-        for end in places:
-            if start != end and rng.random() < 0.3:
-                world.add_road(start, end, rng.randint(1, 30))
-                if rng.random() < 0.2:
-                    world.close_road(start, end)
-    return world
+from random_worlds import random_world
 
 
 def open_roads_graph(world: World) -> nx.DiGraph:

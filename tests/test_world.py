@@ -2,8 +2,8 @@ import pytest
 
 from agent_eval.env.world import Order, TimeWindow, World
 
-
 # TimeWindow
+
 
 def test_window_contains_its_edges_and_inside():
     window = TimeWindow(30, 60)
@@ -34,6 +34,7 @@ def test_window_cannot_start_after_it_ends():
 
 # Order
 
+
 def test_order_holds_its_fields():
     order = Order("o1", "school", TimeWindow(30, 60))
     assert order.order_id == "o1"
@@ -42,6 +43,7 @@ def test_order_holds_its_fields():
 
 
 # World: places and roads
+
 
 def test_new_world_is_empty():
     world = World()
@@ -107,6 +109,7 @@ def test_add_same_road_twice_fails():
 
 # World: closures
 
+
 def test_close_road(city):
     city.close_road("warehouse", "school")
     assert ("warehouse", "school") in city.closed
@@ -132,6 +135,7 @@ def test_is_open(city):
 
 # World: orders
 
+
 def test_add_order(city):
     order = Order("o5", "office", TimeWindow(0, 30))
     city.add_order(order)
@@ -149,6 +153,7 @@ def test_add_order_to_unknown_place_fails(city):
 
 
 # World: the courier's start
+
 
 def test_set_start():
     world = World()
@@ -176,9 +181,16 @@ def test_courier_cannot_start_before_minute_zero(city):
 
 # The test city itself
 
+
 def test_city_has_what_the_lesson_shows(city):
     assert sorted(city.roads) == [
-        "bank", "gas station", "market", "office", "restaurant", "school", "warehouse",
+        "bank",
+        "gas station",
+        "market",
+        "office",
+        "restaurant",
+        "school",
+        "warehouse",
     ]
     assert sum(len(ends) for ends in city.roads.values()) == 12
     assert city.closed == {("office", "school")}
