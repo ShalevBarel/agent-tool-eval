@@ -10,7 +10,8 @@ import random
 from pathlib import Path
 
 from agent_eval.env.tasks import Task, save_tasks
-from agent_eval.env.world import World
+from agent_eval.env.world import Order, TimeWindow, World
+from agent_eval.solver import held_karp
 
 # The number of orders at each difficulty, fewest to most.
 LEVELS = {"easy": (1, 1), "medium": (2, 3), "hard": (4, 5)}
@@ -66,12 +67,19 @@ def add_random_orders(rng: random.Random, world: World, count: int) -> None:
     Each window opens at a random minute up to LATEST_OPEN and stays open
     MIN_WIDTH to MAX_WIDTH minutes.
     """
-    raise NotImplementedError
+    places = [place for place in world.roads if place != world.start]
+    for i, place in enumerate(rng.sample(places, count), start=1):
+        opens = rng.randint(0, LATEST_OPEN)
+        window = TimeWindow(opens, opens + rng.randint(MIN_WIDTH, MAX_WIDTH))
+        world.add_order(Order(f"o{i}", place, window))
 
 
 def each_order_alone_on_time(world: World) -> bool:
     """Return whether every order could be delivered on time if it were the only one."""
-    raise NotImplementedError
+    for order_id in world.orders:
+        if held_karp.solve(world, [order_id]) is None:
+            return False
+    return True
 
 
 def generate(seed: int, per_level: int, impossible_share: float = 0.15) -> list[Task]:
@@ -82,7 +90,27 @@ def generate(seed: int, per_level: int, impossible_share: float = 0.15) -> list[
     each of its orders alone could be delivered on time, so the problem lies
     in combining them. Random tasks are drawn until every count is met.
     """
-    raise NotImplementedError
+    rng = random.Random(seed)
+    tasks = []
+    for difficulty, (fewest, most) in LEVELS.items():
+        impossible_left = round(per_level * impossible_share)
+        solvable_left = per_level - impossible_left
+        while solvable_left > 0 or impossible_left > 0:
+            world = random_city(rng)
+            add_random_orders(rng, world, rng.randint(fewest, most))
+            answer = held_karp.solve(world, list(world.orders))
+            if answer is not None:
+                if solvable_left == 0:
+                    continue
+                solvable_left -= 1
+            else:
+                if impossible_left == 0:
+                    continue
+                if len(world.orders) > 1 and not each_order_alone_on_time(world):
+                    continue
+                impossible_left -= 1
+            tasks.append(Task(f"task-{len(tasks):03d}", difficulty, world, answer))
+    return tasks
 
 
 def main(argv: list[str] | None = None) -> None:
