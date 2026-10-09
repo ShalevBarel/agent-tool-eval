@@ -105,6 +105,9 @@ def _delivery_minute(
     the order's place can't be reached from place, or would be reached after
     the window closes.
     """
-    if order.place not in travel[place] or travel[place][order.place] + minute > order.window.end:
+    if order.place not in travel[place]:
         return None
-    return max(travel[place][order.place] + minute, order.window.start)
+    arrival = travel[place][order.place] + minute
+    if arrival > order.window.end:
+        return None
+    return max(arrival, order.window.start)
