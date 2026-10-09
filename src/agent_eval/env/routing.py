@@ -36,10 +36,11 @@ def dijkstra(world: World, source: str) -> tuple[dict[str, int], dict[str, str]]
             if not world.is_open(curr_place, neighbor):
                 continue
             # Relax method
-            if curr_dist + world.roads[curr_place][neighbor] < distances[neighbor]:
-                distances[neighbor] = curr_dist + world.roads[curr_place][neighbor]
+            new_dist = curr_dist + world.roads[curr_place][neighbor]
+            if new_dist < distances[neighbor]:
+                distances[neighbor] = new_dist
                 previous[neighbor] = curr_place
-                heapq.heappush(queue, (distances[neighbor], neighbor))
+                heapq.heappush(queue, (new_dist, neighbor))
 
     # Filter dicts to only reachable places
     final_distances = {k: v for k, v in distances.items() if v != float("inf")}
