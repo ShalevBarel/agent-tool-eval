@@ -72,9 +72,9 @@ TOOL_SPECS = [
     {
         "name": "check_schedule",
         "description": "Drive a delivery order from the courier's start, by the fastest open route,"
-                        " and report its detailes, such as: on_time, finish_minute, problem, stops."
-                        " Stops reports at each stop the: order_id, place, arrival_minute,"
-                        " delivery_minute",
+        " and report its detailes, such as: on_time, finish_minute, problem, stops."
+        " Stops reports at each stop the: order_id, place, arrival_minute,"
+        " delivery_minute",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -93,7 +93,8 @@ TOOL_SPECS = [
     {
         "name": "submit_answer",
         "description": "Submit a final answer. Mention wether is is solvable or not,"
-        " and the order"" id's by the order the courier delivers them. If it is not"
+        " and the order"
+        " id's by the order the courier delivers them. If it is not"
         " solvable, order_ids must be empty.",
         "input_schema": {
             "type": "object",

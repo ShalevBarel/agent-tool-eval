@@ -1,12 +1,16 @@
 """The agent loop: the model calls tools until it submits an answer."""
 
+import json
+import time
 from dataclasses import dataclass
 
 from anthropic import Anthropic
 
+from agent_eval.agent.tool_specs import TOOL_SPECS
 from agent_eval.env.tasks import Task
 from agent_eval.env.tools import (
     Answer,
+    ToolError,
     check_schedule,
     get_order,
     roads_from,
@@ -117,7 +121,11 @@ def task_prompt(world: World) -> str:
     Example:
         "The courier starts at p0 at minute 0. Deliver these orders: o1, o2."
     """
-    raise NotImplementedError
+    order_ids = ", ".join(world.orders)
+    return (
+        f"The courier starts at {world.start} at minute {world.start_minute}. "
+        f"Deliver these orders: {order_ids}."
+    )
 
 
 def call_tool(world: World, name: str, tool_input: dict) -> tuple[object, str | None]:
@@ -127,7 +135,12 @@ def call_tool(world: World, name: str, tool_input: dict) -> tuple[object, str | 
     ToolError, returns None and an error message for the model. Any other
     exception is a bug, and propagates.
     """
-    raise NotImplementedError
+    if name not in TOOLS:
+        return None, f"unknown tool: {name}"
+    try:
+        return TOOLS[name](world, **tool_input), None
+    except ToolError as error:
+        return None, str(error)
 
 
 def run_task(client: Anthropic, task: Task, config: AgentConfig) -> RunResult:
@@ -138,4 +151,68 @@ def run_task(client: Anthropic, task: Task, config: AgentConfig) -> RunResult:
     came, thinking blocks included, followed by one message with the results
     of all its tool calls. Tool calls after a valid answer are not run.
     """
-    raise NotImplementedError
+    started = time.perf_counter()
+    messages = [{"role": "user", "content": task_prompt(task.world)}]
+    tool_calls = []
+    answer = None
+    outcome = "turn_limit"
+    turns = 0
+    input_tokens = 0
+    output_tokens = 0
+
+    while turns < config.max_turns:
+        response = client.messages.create(
+            model=config.model,
+            max_tokens=config.max_tokens,
+            system=SYSTEM_PROMPT,
+            tools=TOOL_SPECS,
+            messages=messages,
+            output_config={"effort": config.effort},
+        )
+        turns += 1
+        input_tokens += response.usage.input_tokens
+        output_tokens += response.usage.output_tokens
+        if response.stop_reason != "tool_use":
+            outcome = response.stop_reason
+            break
+
+        results = []
+        for block in response.content:
+            if block.type != "tool_use":
+                continue
+            result, error = call_tool(task.world, block.name, block.input)
+            if error is not None:
+                output = error
+            elif isinstance(result, Answer):
+                output = "answer received"
+                answer = result
+            else:
+                output = json.dumps(result)
+            tool_calls.append(ToolCall(turns, block.name, block.input, output, error is not None))
+            results.append(
+                {
+                    "type": "tool_result",
+                    "tool_use_id": block.id,
+                    "content": output,
+                    "is_error": error is not None,
+                }
+            )
+            if answer is not None:
+                break
+
+        if answer is not None:
+            outcome = "answered"
+            break
+        messages.append({"role": "assistant", "content": response.content})
+        messages.append({"role": "user", "content": results})
+
+    return RunResult(
+        task.task_id,
+        outcome,
+        answer,
+        turns,
+        tool_calls,
+        input_tokens,
+        output_tokens,
+        time.perf_counter() - started,
+    )
