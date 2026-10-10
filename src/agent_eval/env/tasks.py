@@ -70,8 +70,8 @@ def world_from_dict(data: dict) -> World:
     world = World()
     for place in data["roads"]:
         world.add_place(place)
-    for start, end in data["roads"].items():
-        for end, minutes in end.items():
+    for start, ends in data["roads"].items():
+        for end, minutes in ends.items():
             world.add_road(start, end, minutes)
     for start, end in data["closed"]:
         world.close_road(start, end)
