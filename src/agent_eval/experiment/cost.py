@@ -13,4 +13,6 @@ def cost_usd(model: str, input_tokens: int, output_tokens: int) -> float:
     Raises:
         ValueError: If the model has no price.
     """
-    raise NotImplementedError
+    if model not in PRICES:
+        raise ValueError(f"no price for model {model}")
+    return (input_tokens * PRICES[model][0] + output_tokens * PRICES[model][1]) / 1_000_000
