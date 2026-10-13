@@ -21,13 +21,17 @@ TOOL_SPECS = [
     },
     {
         "name": "roads_from",
-        "description": "Get a list of the roads out of a place, sorted by destination",
+        "description": (
+            "Get the roads out of a place, sorted by destination. Each road has its "
+            "destination, its minutes, and whether it is open today. Closed roads "
+            "are listed too, with open set to false."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "place": {
                     "type": "string",
-                    "description": "The place from which the roads are out of, such as p1.",
+                    "description": "The place the roads leave from, such as p1.",
                 },
             },
             "required": ["place"],
@@ -71,18 +75,22 @@ TOOL_SPECS = [
     },
     {
         "name": "check_schedule",
-        "description": "Drive a delivery order from the courier's start, by the fastest open route,"
-        " and report its detailes, such as: on_time, finish_minute, problem, stops."
-        " Stops reports at each stop the: order_id, place, arrival_minute,"
-        " delivery_minute",
+        "description": (
+            "Drive the courier from its start through the given orders, in the given "
+            "order, by the fastest open route. Report on_time, finish_minute, problem, "
+            "and the stops, with order_id, place, arrival and delivery at each one. "
+            "Checking stops at the first order that can't be delivered on time."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "order_ids": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "The list of the order id's of the orders"
-                    " that needs to be delivered.",
+                    "description": (
+                        "The order ids, in the order the courier delivers them. They "
+                        "may be just the first part of a full delivery order."
+                    ),
                 },
             },
             "required": ["order_ids"],
@@ -92,22 +100,25 @@ TOOL_SPECS = [
     },
     {
         "name": "submit_answer",
-        "description": "Submit a final answer. Mention wether is is solvable or not,"
-        " and the order"
-        " id's by the order the courier delivers them. If it is not"
-        " solvable, order_ids must be empty.",
+        "description": (
+            "Submit your final answer: whether the task is solvable, and the order "
+            "ids in the order the courier delivers them. If it is not solvable, "
+            "order_ids must be empty."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "solvable": {
                     "type": "boolean",
-                    "description": "Wether the problem is solvable or not.",
+                    "description": "Whether the problem is solvable or not.",
                 },
                 "order_ids": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "The answer of the problem. The list of the order id's by the"
-                    " order that the courier delivers them to achive minimal total delivery time.",
+                    "description": (
+                        "The order ids in the order the courier delivers them, so that "
+                        "the last delivery is as early as possible. Empty if not solvable."
+                    ),
                 },
             },
             "required": ["solvable", "order_ids"],
