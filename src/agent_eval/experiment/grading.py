@@ -1,7 +1,7 @@
 """Grading an agent's answer against the exact answer of its task."""
 
 from agent_eval.env.tasks import Task
-from agent_eval.env.tools import Answer
+from agent_eval.env.tools import Answer, check_schedule
 
 # Every verdict that grade returns. Only "correct" is a success.
 VERDICTS = [
@@ -43,4 +43,21 @@ def grade(task: Task, answer: Answer | None) -> str:
             exact answer. Either one is a bug in the solver, not a mistake
             by the agent.
     """
-    raise NotImplementedError
+    if answer is None:
+        return "no_answer"
+    if not answer.solvable:
+        if task.answer is None:
+            return "correct"
+        return "missed_solution"
+    if set(answer.order_ids) != set(task.world.orders):
+        return "missing_orders"
+
+    schedule = check_schedule(task.world, answer.order_ids)
+    if not schedule["on_time"]:
+        return "not_on_time"
+    if task.answer is None or schedule["finish_minute"] < task.answer.finish_minute:
+        raise ValueError(f"the answer to {task.task_id} is better than the exact answer")
+    if schedule["finish_minute"] > task.answer.finish_minute:
+        return "not_earliest"
+    return "correct"
+
