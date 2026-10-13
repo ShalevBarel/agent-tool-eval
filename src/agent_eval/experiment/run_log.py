@@ -1,9 +1,12 @@
 """The run log: a JSON Lines file with one line per run, graded and priced."""
-
+import json
+from dataclasses import asdict
 from pathlib import Path
 
 from agent_eval.agent.loop import AgentConfig, RunResult
 from agent_eval.env.tasks import Task
+from agent_eval.experiment.cost import cost_usd
+from agent_eval.experiment.grading import grade
 
 
 def run_record(task: Task, config: AgentConfig, result: RunResult) -> dict:
@@ -29,17 +32,28 @@ def run_record(task: Task, config: AgentConfig, result: RunResult) -> dict:
             "cost_usd": 0.002251,
         }
     """
-    raise NotImplementedError
+    record = asdict(result)
+    record["difficulty"] = task.difficulty
+    record["model"] = config.model
+    record["effort"] = config.effort
+    record["verdict"] = grade(task, result.answer)
+    record["cost_usd"] = cost_usd(config.model, result.input_tokens, result.output_tokens)
+    return record
 
 
 def append_record(path: Path, record: dict) -> None:
     """Add a record to the end of a run log as one line, creating the file if needed."""
-    raise NotImplementedError
+    with path.open("a", encoding="utf-8") as file:
+        file.write(json.dumps(record) + "\n")
 
 
 def load_records(path: Path) -> list[dict]:
     """Read every record of a run log, in order."""
-    raise NotImplementedError
+    records = []
+    with path.open(encoding="utf-8") as file:
+        for line in file:
+            records.append(json.loads(line))
+    return records
 
 
 def summarize(records: list[dict]) -> dict[str, dict]:
