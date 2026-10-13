@@ -23,6 +23,8 @@ def test_shows_the_calls_and_both_answers(monkeypatch, capsys):
     assert "tokens   200 in, 20 out" in printed
     assert "agent    o1\n" in printed
     assert "exact    o1, last delivery at minute " in printed
+    assert "verdict  correct\n" in printed
+    assert "cost     $0.0000\n" in printed
 
 
 def test_shows_a_run_without_an_answer(monkeypatch, capsys):
@@ -31,3 +33,11 @@ def test_shows_a_run_without_an_answer(monkeypatch, capsys):
     printed = capsys.readouterr().out
     assert "outcome  end_turn, after 1 turns" in printed
     assert "agent    no answer" in printed
+    assert "verdict  no_answer\n" in printed
+
+
+def test_shows_the_cost_of_the_model(monkeypatch, capsys):
+    answer = tool_use("submit_answer", {"solvable": True, "order_ids": ["o1"]})
+    use_fake_client([response(answer, input_tokens=20_000, output_tokens=3_000)], monkeypatch)
+    run.main(["--task", "task-000", "--model", "claude-sonnet-5-5"])
+    assert "cost     $0.0700\n" in capsys.readouterr().out

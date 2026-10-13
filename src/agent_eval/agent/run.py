@@ -13,6 +13,8 @@ import anthropic
 
 from agent_eval.agent.loop import AgentConfig, RunResult, run_task
 from agent_eval.env.tasks import Task, load_tasks
+from agent_eval.experiment.cost import cost_usd
+from agent_eval.experiment.grading import grade
 
 OUTPUT_WIDTH = 100
 
@@ -43,7 +45,7 @@ def show(task: Task, result: RunResult) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    """Run the agent on the task named on the command line."""
+    """Run the agent on the task named on the command line, then grade and price the run."""
     parser = argparse.ArgumentParser(description="Run the agent on one task.")
     parser.add_argument("--task", required=True, help="task id, such as task-100")
     parser.add_argument("--model", default="claude-haiku-5-5", help="default: claude-haiku-5-5")
@@ -58,8 +60,11 @@ def main(argv: list[str] | None = None) -> None:
     print(f"{task.task_id}, {task.difficulty}, orders {' '.join(task.world.orders)}")
     print()
 
-    result = run_task(anthropic.Anthropic(), task, AgentConfig(args.model, args.effort))
+    config = AgentConfig(args.model, args.effort)
+    result = run_task(anthropic.Anthropic(), task, config)
     show(task, result)
+    print(f"verdict  {grade(task, result.answer)}")
+    print(f"cost     ${cost_usd(config.model, result.input_tokens, result.output_tokens):.4f}")
 
 
 if __name__ == "__main__":
