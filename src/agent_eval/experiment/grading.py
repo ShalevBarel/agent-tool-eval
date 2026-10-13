@@ -60,4 +60,3 @@ def grade(task: Task, answer: Answer | None) -> str:
     if schedule["finish_minute"] > task.answer.finish_minute:
         return "not_earliest"
     return "correct"
-

@@ -1,4 +1,5 @@
 """The run log: a JSON Lines file with one line per run, graded and priced."""
+
 import json
 from dataclasses import asdict
 from pathlib import Path
@@ -68,4 +69,13 @@ def summarize(records: list[dict]) -> dict[str, dict]:
             "all": {"runs": 12, "correct": 9, "cost_usd": 0.0415},
         }
     """
-    raise NotImplementedError
+    summary = {}
+    for record in records:
+        for group in [record["difficulty"], "all"]:
+            if group not in summary:
+                summary[group] = {"runs": 0, "correct": 0, "cost_usd": 0.0}
+            summary[group]["runs"] += 1
+            if record["verdict"] == "correct":
+                summary[group]["correct"] += 1
+            summary[group]["cost_usd"] += record["cost_usd"]
+    return summary
