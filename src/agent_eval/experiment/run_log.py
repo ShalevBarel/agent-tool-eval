@@ -79,3 +79,18 @@ def summarize(records: list[dict]) -> dict[str, dict]:
                 summary[group]["correct"] += 1
             summary[group]["cost_usd"] += record["cost_usd"]
     return summary
+
+
+def runs_to_do(tasks: list[Task], repeats: int, records: list[dict]) -> list[tuple[Task, int]]:
+    """Return the runs that the log doesn't have yet, as (task, repeat) pairs.
+
+    A run is one repeat of one task, and repeats count from 0. The runs come
+    repeat by repeat, each in the order of tasks, so every task gets its
+    first run before any task gets its second.
+    """
+    raise NotImplementedError
+
+
+def spent_usd(records: list[dict]) -> float:
+    """Return the total cost of the runs in a log, in dollars."""
+    raise NotImplementedError

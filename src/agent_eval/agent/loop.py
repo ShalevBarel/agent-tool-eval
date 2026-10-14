@@ -58,12 +58,15 @@ class AgentConfig:
         model: The model id, such as "claude-haiku-5-5".
         effort: How much the model thinks: "low", "medium", "high", "xhigh"
             or "max".
+        tool_specs: Which tool descriptions the model sees, a key of
+            TOOL_SPEC_SETS: "basic" or "improved".
         max_turns: The most requests to the model in one run.
         max_tokens: The most tokens in one response, thinking included.
     """
 
     model: str
     effort: str
+    tool_specs: str = "basic"
     max_turns: int = 30
     max_tokens: int = 16000
 
@@ -100,8 +103,13 @@ class RunResult:
         answer: The submitted answer, or None.
         turns: The number of requests to the model.
         tool_calls: Every tool call, in order.
-        input_tokens: Input tokens, summed over all requests.
+        input_tokens: Input tokens read without the cache, summed over all
+            requests.
         output_tokens: Output tokens, thinking included, summed over all requests.
+        cache_write_tokens: Input tokens written to the cache, summed over
+            all requests.
+        cache_read_tokens: Input tokens read from the cache, summed over all
+            requests.
         seconds: How long the run took.
     """
 
@@ -112,6 +120,8 @@ class RunResult:
     tool_calls: list[ToolCall]
     input_tokens: int
     output_tokens: int
+    cache_write_tokens: int
+    cache_read_tokens: int
     seconds: float
 
 
@@ -150,6 +160,10 @@ def run_task(client: Anthropic, task: Task, config: AgentConfig) -> RunResult:
     config.max_turns requests. Each response goes back to the model as it
     came, thinking blocks included, followed by one message with the results
     of all its tool calls. Tool calls after a valid answer are not run.
+
+    Every request asks the API to cache everything up to its last block, so
+    the next request reads the tools, the system prompt and the history so
+    far from the cache.
     """
     started = time.perf_counter()
     messages = [{"role": "user", "content": task_prompt(task.world)}]

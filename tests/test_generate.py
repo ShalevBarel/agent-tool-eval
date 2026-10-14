@@ -16,12 +16,14 @@ from agent_eval.env.generate import (
     each_order_alone_on_time,
     generate,
     random_city,
+    simple_rules_fall_short,
 )
 from agent_eval.env.routing import dijkstra
 from agent_eval.env.tasks import load_tasks
 from agent_eval.env.tools import check_schedule
 from agent_eval.env.world import Order, TimeWindow
 from agent_eval.solver import brute_force, held_karp
+from agent_eval.solver.rules import RULES
 
 SAVED_TASKS = Path(__file__).resolve().parent.parent / "data" / "tasks.jsonl"
 
@@ -46,7 +48,7 @@ def test_random_city_is_connected_while_roads_are_open(seed):
         assert len(distances) == len(places)
 
 
-@pytest.mark.parametrize("count", [1, 3, 5])
+@pytest.mark.parametrize("count", [1, 3, 5, 7])
 def test_add_random_orders(count):
     rng = random.Random(count)
     world = random_city(rng)
@@ -81,6 +83,24 @@ def test_each_order_alone_on_time_but_not_together(city):
     assert held_karp.solve(city, ["o2", "o5"]) is None
 
 
+def test_simple_rules_reach_the_best_finish(city):
+    del city.orders["o4"]
+    assert not simple_rules_fall_short(city, 90)
+
+
+def test_simple_rules_fall_short_of_an_earlier_finish(city):
+    del city.orders["o4"]
+    assert simple_rules_fall_short(city, 89)
+
+
+def test_simple_rules_fall_short_when_late_or_stuck(city):
+    city.orders.clear()
+    city.add_order(Order("o1", "school", TimeWindow(0, 60)))
+    city.add_order(Order("o2", "market", TimeWindow(60, 120)))
+    city.add_order(Order("o3", "bank", TimeWindow(20, 80)))
+    assert simple_rules_fall_short(city, 67)
+
+
 def test_counts(tasks):
     assert len(tasks) == 60
     for difficulty in LEVELS:
@@ -98,7 +118,7 @@ def test_order_counts_match_the_level(tasks):
     for task in tasks:
         fewest, most = LEVELS[task.difficulty]
         assert fewest <= len(task.world.orders) <= most
-    assert {len(task.world.orders) for task in tasks} == {1, 2, 3, 4, 5}
+    assert {len(task.world.orders) for task in tasks} == {2, 3, 4, 5, 6, 7}
 
 
 def test_answers_are_on_time(tasks):
@@ -118,6 +138,18 @@ def test_answers_match_brute_force(tasks):
             assert best is None
         else:
             assert best.finish_minute == task.answer.finish_minute
+
+
+def test_no_simple_rule_finds_a_best_answer(tasks):
+    for task in tasks:
+        if task.answer is None:
+            continue
+        for rule in RULES:
+            order_ids = rule(task.world)
+            if order_ids is None:
+                continue
+            report = check_schedule(task.world, order_ids)
+            assert not report["on_time"] or report["finish_minute"] > task.answer.finish_minute
 
 
 def test_impossible_tasks_hide_the_problem(tasks):

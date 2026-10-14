@@ -1,0 +1,4 @@
+# Claude Haiku 5.5 thinking harder, with the basic tool descriptions.
+model = "claude-haiku-5-5"
+effort = "high"
+tool_specs = "basic"

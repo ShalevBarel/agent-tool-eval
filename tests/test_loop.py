@@ -11,7 +11,7 @@ from agent_eval.agent.loop import (
     run_task,
     task_prompt,
 )
-from agent_eval.agent.tool_specs import TOOL_SPECS
+from agent_eval.agent.tool_specs import IMPROVED_TOOL_SPECS, TOOL_SPECS
 from agent_eval.env.tasks import Task
 from agent_eval.env.tools import Answer, get_order, shortest_route
 from fake_client import FakeClient, response, text, thinking, tool_use
@@ -96,6 +96,7 @@ def test_first_request(task):
             "tools": TOOL_SPECS,
             "messages": [{"role": "user", "content": task_prompt(task.world)}],
             "output_config": {"effort": "medium"},
+            "cache_control": {"type": "ephemeral"},
         }
     ]
 
@@ -108,6 +109,20 @@ def test_request_follows_the_config(task):
     assert request["model"] == "claude-sonnet-5-5"
     assert request["max_tokens"] == 8000
     assert request["output_config"] == {"effort": "high"}
+
+
+def test_improved_tool_descriptions(task):
+    config = AgentConfig("claude-haiku-5-5", "medium", tool_specs="improved")
+    client = FakeClient([response(text("I give up."), stop_reason="end_turn")])
+    run_task(client, task, config)
+    assert client.messages.requests[0]["tools"] == IMPROVED_TOOL_SPECS
+
+
+def test_every_request_asks_for_the_cache(task):
+    client = FakeClient([response(get("o1")), response(submit(["o1"]))])
+    run_task(client, task, CONFIG)
+    for request in client.messages.requests:
+        assert request["cache_control"] == {"type": "ephemeral"}
 
 
 def test_tool_result_goes_back_to_the_model(task):
@@ -262,6 +277,22 @@ def test_tokens_are_summed_over_turns(task):
     result = run_task(FakeClient([first, second]), task, CONFIG)
     assert result.input_tokens == 1200
     assert result.output_tokens == 100
+
+
+def test_cache_tokens_are_summed_over_turns(task):
+    first = response(get("o1"), cache_write_tokens=1500, cache_read_tokens=0)
+    second = response(submit(["o1"]), cache_write_tokens=300, cache_read_tokens=1500)
+    result = run_task(FakeClient([first, second]), task, CONFIG)
+    assert result.cache_write_tokens == 1800
+    assert result.cache_read_tokens == 1500
+
+
+def test_missing_cache_counts_are_zero(task):
+    """The API can leave the cache counts out, as null, when it cached nothing."""
+    only = response(submit(["o1"]), cache_write_tokens=None, cache_read_tokens=None)
+    result = run_task(FakeClient([only]), task, CONFIG)
+    assert result.cache_write_tokens == 0
+    assert result.cache_read_tokens == 0
 
 
 def test_result_names_the_task_and_times_the_run(task):

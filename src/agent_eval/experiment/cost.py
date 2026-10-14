@@ -1,5 +1,25 @@
 """What the tokens of a run cost."""
 
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Price:
+    """A model's prices in dollars per million tokens.
+
+    Attributes:
+        input: Input read without the cache.
+        output: Output, thinking included.
+        cache_write: Input written to the cache, which keeps it for 5 minutes.
+        cache_read: Input read from the cache.
+    """
+
+    input: float
+    output: float
+    cache_write: float
+    cache_read: float
+
+
 # Dollars per million tokens, as (input, output). Thinking is billed as output.
 PRICES = {
     "claude-haiku-5-5": (0.10, 0.50),

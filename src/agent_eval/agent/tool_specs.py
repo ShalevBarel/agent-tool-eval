@@ -127,3 +127,22 @@ TOOL_SPECS = [
         "strict": True,
     },
 ]
+
+# Longer descriptions for the same tools: what each returns, when it helps,
+# and how it combines with the others. Only the descriptions change; the
+# input schemas stay the same.
+IMPROVED_DESCRIPTIONS = {
+    "get_order": "",
+    "roads_from": "",
+    "route_minutes": "",
+    "shortest_route": "",
+    "check_schedule": "",
+    "submit_answer": "",
+}
+
+IMPROVED_TOOL_SPECS = [
+    {**spec, "description": IMPROVED_DESCRIPTIONS[spec["name"]]} for spec in TOOL_SPECS
+]
+
+# The sets of tool descriptions an agent configuration can choose, by name.
+TOOL_SPEC_SETS = {"basic": TOOL_SPECS, "improved": IMPROVED_TOOL_SPECS}

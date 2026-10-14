@@ -5,7 +5,14 @@ import pytest
 from agent_eval.agent.loop import AgentConfig, RunResult, ToolCall
 from agent_eval.env.tasks import Task
 from agent_eval.env.tools import Answer
-from agent_eval.experiment.run_log import append_record, load_records, run_record, summarize
+from agent_eval.experiment.run_log import (
+    append_record,
+    load_records,
+    run_record,
+    runs_to_do,
+    spent_usd,
+    summarize,
+)
 from agent_eval.solver import Solution
 
 CONFIG = AgentConfig("claude-haiku-5-5", "medium")
@@ -21,16 +28,20 @@ def task(city) -> Task:
 
 
 def finished_run(answer: Answer | None, outcome: str = "answered") -> RunResult:
-    """A run of two turns and one tool call, with 3000 input and 400 output tokens."""
-    return RunResult("task-three", outcome, answer, 2, [CALL], 3000, 400, 6.5)
+    """A run of two turns and one tool call.
+
+    It has 3000 input and 400 output tokens, and 2000 tokens written to the
+    cache and 10000 read from it.
+    """
+    return RunResult("task-three", outcome, answer, 2, [CALL], 3000, 400, 2000, 10_000, 6.5)
 
 
 # run_record
 
 
 def test_record_holds_the_run_and_more(task):
-    record = run_record(task, CONFIG, finished_run(Answer(True, ["o2", "o1", "o3"])))
-    assert record.pop("cost_usd") == pytest.approx(0.0005)
+    record = run_record(task, CONFIG, finished_run(Answer(True, ["o2", "o1", "o3"])), 2)
+    assert record.pop("cost_usd") == pytest.approx(0.00085)
     assert record == {
         "task_id": "task-three",
         "outcome": "answered",
@@ -47,36 +58,41 @@ def test_record_holds_the_run_and_more(task):
         ],
         "input_tokens": 3000,
         "output_tokens": 400,
+        "cache_write_tokens": 2000,
+        "cache_read_tokens": 10_000,
         "seconds": 6.5,
         "difficulty": "hard",
         "model": "claude-haiku-5-5",
         "effort": "medium",
+        "tool_specs": "basic",
+        "repeat": 2,
         "verdict": "correct",
     }
 
 
 def test_record_grades_the_answer(task):
-    record = run_record(task, CONFIG, finished_run(Answer(True, ["o1", "o3", "o2"])))
+    record = run_record(task, CONFIG, finished_run(Answer(True, ["o1", "o3", "o2"])), 0)
     assert record["verdict"] == "not_on_time"
 
 
 def test_record_of_a_run_without_an_answer(task):
-    record = run_record(task, CONFIG, finished_run(None, outcome="turn_limit"))
+    record = run_record(task, CONFIG, finished_run(None, outcome="turn_limit"), 0)
     assert record["outcome"] == "turn_limit"
     assert record["answer"] is None
     assert record["verdict"] == "no_answer"
 
 
 def test_record_prices_the_model_of_the_run(task):
-    config = AgentConfig("claude-sonnet-5-5", "low")
-    record = run_record(task, config, finished_run(Answer(False, [])))
+    config = AgentConfig("claude-sonnet-5-5", "low", tool_specs="improved")
+    record = run_record(task, config, finished_run(Answer(False, [])), 0)
     assert record["model"] == "claude-sonnet-5-5"
     assert record["effort"] == "low"
-    assert record["cost_usd"] == pytest.approx(0.01)
+    assert record["tool_specs"] == "improved"
+    assert record["cost_usd"] == pytest.approx(0.016)
 
 
 def test_record_comes_back_from_json_unchanged(task):
-    record = run_record(task, CONFIG, finished_run(Answer(True, ["o2", "o1", "o3"])))
+    record = run_record(task, CONFIG, finished_run(Answer(True, ["o2", "o1", "o3"])), 0)
     assert json.loads(json.dumps(record)) == record
 
 
@@ -107,7 +123,7 @@ def test_load_records_in_order(tmp_path):
 
 def test_a_record_survives_the_log(task, tmp_path):
     path = tmp_path / "log.jsonl"
-    record = run_record(task, CONFIG, finished_run(Answer(True, ["o2", "o1", "o3"])))
+    record = run_record(task, CONFIG, finished_run(Answer(True, ["o2", "o1", "o3"])), 0)
     append_record(path, record)
     assert load_records(path) == [record]
 
@@ -144,3 +160,62 @@ def test_summarize_when_nothing_is_correct():
 
 def test_summarize_no_records():
     assert summarize([]) == {}
+
+
+# runs_to_do
+
+
+def three_tasks(city) -> list[Task]:
+    return [Task(f"task-00{i}", "easy", city, None) for i in range(3)]
+
+
+def test_every_run_to_do_on_an_empty_log(city):
+    to_do = runs_to_do(three_tasks(city), 2, [])
+    assert [(task.task_id, repeat) for task, repeat in to_do] == [
+        ("task-000", 0),
+        ("task-001", 0),
+        ("task-002", 0),
+        ("task-000", 1),
+        ("task-001", 1),
+        ("task-002", 1),
+    ]
+
+
+def test_runs_in_the_log_are_skipped(city):
+    records = [{"task_id": "task-001", "repeat": 0}, {"task_id": "task-000", "repeat": 1}]
+    to_do = runs_to_do(three_tasks(city), 2, records)
+    assert [(task.task_id, repeat) for task, repeat in to_do] == [
+        ("task-000", 0),
+        ("task-002", 0),
+        ("task-001", 1),
+        ("task-002", 1),
+    ]
+
+
+def test_runs_to_do_gives_the_tasks_themselves(city):
+    tasks = three_tasks(city)
+    assert runs_to_do(tasks, 1, [])[1][0] is tasks[1]
+
+
+def test_nothing_to_do_when_the_log_is_full(city):
+    tasks = three_tasks(city)
+    records = [{"task_id": task.task_id, "repeat": 0} for task in tasks]
+    assert runs_to_do(tasks, 1, records) == []
+
+
+def test_runs_of_other_tasks_in_the_log_do_not_count(city):
+    records = [{"task_id": "task-009", "repeat": 0}]
+    to_do = runs_to_do(three_tasks(city)[:1], 1, records)
+    assert [(task.task_id, repeat) for task, repeat in to_do] == [("task-000", 0)]
+
+
+# spent_usd
+
+
+def test_spent_adds_up_the_costs():
+    records = [{"cost_usd": 0.25}, {"cost_usd": 0.5}, {"cost_usd": 0.125}]
+    assert spent_usd(records) == pytest.approx(0.875)
+
+
+def test_nothing_spent_on_an_empty_log():
+    assert spent_usd([]) == 0

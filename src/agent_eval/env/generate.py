@@ -16,7 +16,7 @@ from agent_eval.solver import held_karp
 # The number of orders at each difficulty, fewest to most.
 LEVELS = {"easy": (1, 1), "medium": (2, 3), "hard": (4, 5)}
 
-MIN_PLACES, MAX_PLACES = 6, 10
+MIN_PLACES, MAX_PLACES = 8, 12
 MIN_MINUTES, MAX_MINUTES = 5, 25
 TWO_WAY_CHANCE = 0.6
 CLOSED_CHANCE = 0.1
@@ -80,6 +80,15 @@ def each_order_alone_on_time(world: World) -> bool:
         if held_karp.solve(world, [order_id]) is None:
             return False
     return True
+
+
+def simple_rules_fall_short(world: World, best_minute: int) -> bool:
+    """Return whether no simple rule finds a delivery order that ends at best_minute.
+
+    A rule falls short if it gets stuck, if its order is late somewhere, or
+    if its last delivery is later than best_minute.
+    """
+    raise NotImplementedError
 
 
 def generate(seed: int, per_level: int, impossible_share: float = 0.15) -> list[Task]:
