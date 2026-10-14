@@ -10,11 +10,13 @@ import random
 from pathlib import Path
 
 from agent_eval.env.tasks import Task, save_tasks
+from agent_eval.env.tools import check_schedule
 from agent_eval.env.world import Order, TimeWindow, World
 from agent_eval.solver import held_karp
+from agent_eval.solver.rules import RULES
 
 # The number of orders at each difficulty, fewest to most.
-LEVELS = {"easy": (1, 1), "medium": (2, 3), "hard": (4, 5)}
+LEVELS = {"easy": (2, 3), "medium": (4, 5), "hard": (6, 7)}
 
 MIN_PLACES, MAX_PLACES = 8, 12
 MIN_MINUTES, MAX_MINUTES = 5, 25
@@ -88,16 +90,25 @@ def simple_rules_fall_short(world: World, best_minute: int) -> bool:
     A rule falls short if it gets stuck, if its order is late somewhere, or
     if its last delivery is later than best_minute.
     """
-    raise NotImplementedError
+    for rule in RULES:
+        order_ids = rule(world)
+        if order_ids is None:
+            continue
+        schedule = check_schedule(world, order_ids)
+        if schedule["on_time"] and schedule["finish_minute"] == best_minute:
+            return False
+    return True
 
 
 def generate(seed: int, per_level: int, impossible_share: float = 0.15) -> list[Task]:
     """Generate per_level tasks at each difficulty, easy first.
 
     At each difficulty, round(per_level * impossible_share) of the tasks have
-    no solution. A task with no solution and several orders is kept only if
-    each of its orders alone could be delivered on time, so the problem lies
-    in combining them. Random tasks are drawn until every count is met.
+    no solution. A task with a solution is kept only if no simple rule finds
+    its best delivery order, so it takes a real search. A task with no
+    solution is kept only if each of its orders alone could be delivered on
+    time, so the problem lies in combining them. Random tasks are drawn
+    until every count is met.
     """
     rng = random.Random(seed)
     tasks = []
@@ -110,6 +121,8 @@ def generate(seed: int, per_level: int, impossible_share: float = 0.15) -> list[
             answer = held_karp.solve(world, list(world.orders))
             if answer is not None:
                 if solvable_left == 0:
+                    continue
+                if not simple_rules_fall_short(world, answer.finish_minute):
                     continue
                 solvable_left -= 1
             else:
