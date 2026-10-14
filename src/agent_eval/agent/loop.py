@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from anthropic import Anthropic
 
-from agent_eval.agent.tool_specs import TOOL_SPECS
+from agent_eval.agent.tool_specs import TOOL_SPEC_SETS
 from agent_eval.env.tasks import Task
 from agent_eval.env.tools import (
     Answer,
@@ -173,19 +173,24 @@ def run_task(client: Anthropic, task: Task, config: AgentConfig) -> RunResult:
     turns = 0
     input_tokens = 0
     output_tokens = 0
+    cache_write_tokens = 0
+    cache_read_tokens = 0
 
     while turns < config.max_turns:
         response = client.messages.create(
             model=config.model,
             max_tokens=config.max_tokens,
             system=SYSTEM_PROMPT,
-            tools=TOOL_SPECS,
+            tools=TOOL_SPEC_SETS[config.tool_specs],
             messages=messages,
             output_config={"effort": config.effort},
+            cache_control={"type": "ephemeral"},
         )
         turns += 1
         input_tokens += response.usage.input_tokens
         output_tokens += response.usage.output_tokens
+        cache_write_tokens += response.usage.cache_creation_input_tokens or 0
+        cache_read_tokens += response.usage.cache_read_input_tokens or 0
         if response.stop_reason != "tool_use":
             outcome = response.stop_reason
             break
@@ -228,5 +233,7 @@ def run_task(client: Anthropic, task: Task, config: AgentConfig) -> RunResult:
         tool_calls,
         input_tokens,
         output_tokens,
+        cache_write_tokens,
+        cache_read_tokens,
         time.perf_counter() - started,
     )
