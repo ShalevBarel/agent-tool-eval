@@ -1,0 +1,4 @@
+# Claude Sonnet 5.5 at its default effort, with the basic tool descriptions.
+model = "claude-sonnet-5-5"
+effort = "high"
+tool_specs = "basic"

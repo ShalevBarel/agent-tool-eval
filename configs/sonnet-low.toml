@@ -1,0 +1,4 @@
+# Claude Sonnet 5.5 thinking little, with the basic tool descriptions.
+model = "claude-sonnet-5-5"
+effort = "low"
+tool_specs = "basic"

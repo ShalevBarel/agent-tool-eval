@@ -1,0 +1,4 @@
+# Claude Haiku 5.5 at its default effort, with the basic tool descriptions.
+model = "claude-haiku-5-5"
+effort = "medium"
+tool_specs = "basic"

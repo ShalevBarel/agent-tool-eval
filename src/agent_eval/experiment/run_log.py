@@ -10,11 +10,12 @@ from agent_eval.experiment.cost import cost_usd
 from agent_eval.experiment.grading import grade
 
 
-def run_record(task: Task, config: AgentConfig, result: RunResult) -> dict:
+def run_record(task: Task, config: AgentConfig, result: RunResult, repeat: int) -> dict:
     """Return a run's line in the log, as a dict that json can write.
 
     The line has every field of the RunResult, then the task's difficulty,
-    the model and effort, the verdict on the answer, and the cost.
+    the model, effort and tool descriptions, which repeat of the task this
+    run is, the verdict on the answer, and the cost.
 
     Example:
         {
@@ -23,22 +24,34 @@ def run_record(task: Task, config: AgentConfig, result: RunResult) -> dict:
             "answer": {"solvable": True, "order_ids": ["o2", "o1"]},
             "turns": 4,
             "tool_calls": [{"turn": 1, "name": "get_order", ...}, ...],
-            "input_tokens": 15210,
+            "input_tokens": 2210,
             "output_tokens": 1460,
+            "cache_write_tokens": 3900,
+            "cache_read_tokens": 9100,
             "seconds": 11.8,
             "difficulty": "medium",
             "model": "claude-haiku-5-5",
             "effort": "medium",
+            "tool_specs": "basic",
+            "repeat": 0,
             "verdict": "correct",
-            "cost_usd": 0.002251,
+            "cost_usd": 0.0015295,
         }
     """
     record = asdict(result)
     record["difficulty"] = task.difficulty
     record["model"] = config.model
     record["effort"] = config.effort
+    record["tool_specs"] = config.tool_specs
+    record["repeat"] = repeat
     record["verdict"] = grade(task, result.answer)
-    record["cost_usd"] = cost_usd(config.model, result.input_tokens, result.output_tokens)
+    record["cost_usd"] = cost_usd(
+        config.model,
+        result.input_tokens,
+        result.output_tokens,
+        result.cache_write_tokens,
+        result.cache_read_tokens,
+    )
     return record
 
 
@@ -79,3 +92,24 @@ def summarize(records: list[dict]) -> dict[str, dict]:
                 summary[group]["correct"] += 1
             summary[group]["cost_usd"] += record["cost_usd"]
     return summary
+
+
+def runs_to_do(tasks: list[Task], repeats: int, records: list[dict]) -> list[tuple[Task, int]]:
+    """Return the runs that the log doesn't have yet, as (task, repeat) pairs.
+
+    A run is one repeat of one task, and repeats count from 0. The runs come
+    repeat by repeat, each in the order of tasks, so every task gets its
+    first run before any task gets its second.
+    """
+    done = {(record["task_id"], record["repeat"]) for record in records}
+    to_do = []
+    for repeat in range(repeats):
+        for task in tasks:
+            if (task.task_id, repeat) not in done:
+                to_do.append((task, repeat))
+    return to_do
+
+
+def spent_usd(records: list[dict]) -> float:
+    """Return the total cost of the runs in a log, in dollars."""
+    return sum(record["cost_usd"] for record in records)

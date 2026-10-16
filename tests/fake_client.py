@@ -31,8 +31,21 @@ class FakeClient:
         self.messages = FakeMessages(responses)
 
 
-def response(*content, stop_reason="tool_use", input_tokens=100, output_tokens=10) -> Message:
-    """A response from the model with the given content blocks."""
+def response(
+    *content,
+    stop_reason="tool_use",
+    input_tokens=100,
+    output_tokens=10,
+    cache_write_tokens=0,
+    cache_read_tokens=0,
+) -> Message:
+    """A response from the model with the given content blocks and token counts."""
+    usage = Usage(
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        cache_creation_input_tokens=cache_write_tokens,
+        cache_read_input_tokens=cache_read_tokens,
+    )
     return Message(
         id="msg_test",
         type="message",
@@ -41,7 +54,7 @@ def response(*content, stop_reason="tool_use", input_tokens=100, output_tokens=1
         content=list(content),
         stop_reason=stop_reason,
         stop_sequence=None,
-        usage=Usage(input_tokens=input_tokens, output_tokens=output_tokens),
+        usage=usage,
     )
 
 

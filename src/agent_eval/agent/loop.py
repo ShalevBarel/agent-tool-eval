@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from anthropic import Anthropic
 
-from agent_eval.agent.tool_specs import TOOL_SPECS
+from agent_eval.agent.tool_specs import TOOL_SPEC_SETS
 from agent_eval.env.tasks import Task
 from agent_eval.env.tools import (
     Answer,
@@ -49,6 +49,11 @@ TOOLS = {
     "submit_answer": submit_answer,
 }
 
+# Seconds the client waits for one response. Without a timeout of its own, the
+# client refuses a request that doesn't stream once max_tokens is above about
+# 21000, since such a response might take more than ten minutes.
+REQUEST_TIMEOUT_SECONDS = 15 * 60
+
 
 @dataclass(frozen=True)
 class AgentConfig:
@@ -58,14 +63,18 @@ class AgentConfig:
         model: The model id, such as "claude-haiku-5-5".
         effort: How much the model thinks: "low", "medium", "high", "xhigh"
             or "max".
+        tool_specs: Which tool descriptions the model sees, a key of
+            TOOL_SPEC_SETS: "basic" or "improved".
         max_turns: The most requests to the model in one run.
-        max_tokens: The most tokens in one response, thinking included.
+        max_tokens: The most tokens in one response, thinking included. A
+            client needs REQUEST_TIMEOUT_SECONDS to send more than about 21000.
     """
 
     model: str
     effort: str
+    tool_specs: str = "basic"
     max_turns: int = 30
-    max_tokens: int = 16000
+    max_tokens: int = 32000
 
 
 @dataclass(frozen=True)
@@ -100,8 +109,13 @@ class RunResult:
         answer: The submitted answer, or None.
         turns: The number of requests to the model.
         tool_calls: Every tool call, in order.
-        input_tokens: Input tokens, summed over all requests.
+        input_tokens: Input tokens read without the cache, summed over all
+            requests.
         output_tokens: Output tokens, thinking included, summed over all requests.
+        cache_write_tokens: Input tokens written to the cache, summed over
+            all requests.
+        cache_read_tokens: Input tokens read from the cache, summed over all
+            requests.
         seconds: How long the run took.
     """
 
@@ -112,6 +126,8 @@ class RunResult:
     tool_calls: list[ToolCall]
     input_tokens: int
     output_tokens: int
+    cache_write_tokens: int
+    cache_read_tokens: int
     seconds: float
 
 
@@ -150,6 +166,10 @@ def run_task(client: Anthropic, task: Task, config: AgentConfig) -> RunResult:
     config.max_turns requests. Each response goes back to the model as it
     came, thinking blocks included, followed by one message with the results
     of all its tool calls. Tool calls after a valid answer are not run.
+
+    Every request asks the API to cache everything up to its last block, so
+    the next request reads the tools, the system prompt and the history so
+    far from the cache.
     """
     started = time.perf_counter()
     messages = [{"role": "user", "content": task_prompt(task.world)}]
@@ -159,19 +179,24 @@ def run_task(client: Anthropic, task: Task, config: AgentConfig) -> RunResult:
     turns = 0
     input_tokens = 0
     output_tokens = 0
+    cache_write_tokens = 0
+    cache_read_tokens = 0
 
     while turns < config.max_turns:
         response = client.messages.create(
             model=config.model,
             max_tokens=config.max_tokens,
             system=SYSTEM_PROMPT,
-            tools=TOOL_SPECS,
+            tools=TOOL_SPEC_SETS[config.tool_specs],
             messages=messages,
             output_config={"effort": config.effort},
+            cache_control={"type": "ephemeral"},
         )
         turns += 1
         input_tokens += response.usage.input_tokens
         output_tokens += response.usage.output_tokens
+        cache_write_tokens += response.usage.cache_creation_input_tokens or 0
+        cache_read_tokens += response.usage.cache_read_input_tokens or 0
         if response.stop_reason != "tool_use":
             outcome = response.stop_reason
             break
@@ -214,5 +239,7 @@ def run_task(client: Anthropic, task: Task, config: AgentConfig) -> RunResult:
         tool_calls,
         input_tokens,
         output_tokens,
+        cache_write_tokens,
+        cache_read_tokens,
         time.perf_counter() - started,
     )
