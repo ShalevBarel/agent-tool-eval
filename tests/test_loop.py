@@ -1,8 +1,11 @@
 import json
 
+import anthropic
+import httpx2
 import pytest
 
 from agent_eval.agent.loop import (
+    REQUEST_TIMEOUT_SECONDS,
     SYSTEM_PROMPT,
     TOOLS,
     AgentConfig,
@@ -91,7 +94,7 @@ def test_first_request(task):
     assert client.messages.requests == [
         {
             "model": "claude-haiku-5-5",
-            "max_tokens": 16000,
+            "max_tokens": 32000,
             "system": SYSTEM_PROMPT,
             "tools": TOOL_SPECS,
             "messages": [{"role": "user", "content": task_prompt(task.world)}],
@@ -299,3 +302,24 @@ def test_result_names_the_task_and_times_the_run(task):
     result = run_task(FakeClient([response(submit(["o1"]))]), task, CONFIG)
     assert result.task_id == "task-test"
     assert result.seconds >= 0
+
+
+# run_task with a real client, and a stand-in for the API
+
+
+def real_client(**options) -> anthropic.Anthropic:
+    """A real client whose requests never leave the machine: each gets a reply that gives up."""
+    reply = response(text("I give up."), stop_reason="end_turn").to_dict()
+    transport = httpx2.MockTransport(lambda request: httpx2.Response(200, json=reply))
+    http_client = anthropic.DefaultHttpxClient(transport=transport)
+    return anthropic.Anthropic(api_key="test", http_client=http_client, **options)
+
+
+def test_a_client_with_the_timeout_sends_the_default_max_tokens(task):
+    result = run_task(real_client(timeout=REQUEST_TIMEOUT_SECONDS), task, CONFIG)
+    assert result.outcome == "end_turn"
+
+
+def test_a_client_without_a_timeout_refuses_the_default_max_tokens(task):
+    with pytest.raises(ValueError, match="Streaming is required"):
+        run_task(real_client(), task, CONFIG)

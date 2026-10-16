@@ -12,7 +12,7 @@ from pathlib import Path
 
 import anthropic
 
-from agent_eval.agent.loop import RunResult, run_task
+from agent_eval.agent.loop import REQUEST_TIMEOUT_SECONDS, RunResult, run_task
 from agent_eval.env.tasks import Task, load_tasks
 from agent_eval.env.tools import check_schedule
 from agent_eval.experiment.configs import load_config
@@ -79,7 +79,7 @@ def main(argv: list[str] | None = None) -> None:
     print(f"{task.task_id}, {task.difficulty}, orders {' '.join(task.world.orders)}")
     print()
 
-    result = run_task(anthropic.Anthropic(), task, config)
+    result = run_task(anthropic.Anthropic(timeout=REQUEST_TIMEOUT_SECONDS), task, config)
     show(task, result)
     print(f"verdict  {grade(task, result.answer)}")
     cost = cost_usd(

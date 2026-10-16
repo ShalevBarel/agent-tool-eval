@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from agent_eval import cli
+from agent_eval.agent.loop import REQUEST_TIMEOUT_SECONDS
 from agent_eval.env.tasks import Task, save_tasks
 from agent_eval.experiment.run_log import load_records
 from agent_eval.solver import Solution
@@ -65,6 +66,18 @@ def test_run_a_sample(tasks_file, tmp_path, monkeypatch):
     out = tmp_path / "log.jsonl"
     run(tasks_file, "--budget", "1", "--sample", "1", "--seed", "0", "--out", str(out))
     assert len(load_records(out)) == 1
+
+
+def test_run_gives_the_client_retries_and_a_timeout(tasks_file, tmp_path, monkeypatch):
+    options = {}
+
+    def make_client(**given):
+        options.update(given)
+        return FakeClient([submit(False, [])])
+
+    monkeypatch.setattr(cli.anthropic, "Anthropic", make_client)
+    run(tasks_file, "--budget", "1", "--sample", "1", "--out", str(tmp_path / "log.jsonl"))
+    assert options == {"max_retries": 10, "timeout": REQUEST_TIMEOUT_SECONDS}
 
 
 def test_the_budget_is_required(tasks_file, monkeypatch):

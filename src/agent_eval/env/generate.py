@@ -23,7 +23,7 @@ MIN_MINUTES, MAX_MINUTES = 5, 25
 TWO_WAY_CHANCE = 0.6
 CLOSED_CHANCE = 0.1
 LATEST_OPEN = 150
-MIN_WIDTH, MAX_WIDTH = 30, 90
+MIN_WIDTH, MAX_WIDTH = 60, 150
 
 
 def random_city(rng: random.Random) -> World:

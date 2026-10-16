@@ -12,6 +12,7 @@ from pathlib import Path
 
 import anthropic
 
+from agent_eval.agent.loop import REQUEST_TIMEOUT_SECONDS
 from agent_eval.env.tasks import load_tasks
 from agent_eval.experiment.configs import load_config
 from agent_eval.experiment.run_log import load_records
@@ -78,7 +79,7 @@ def run_command(parser: argparse.ArgumentParser, args: argparse.Namespace) -> No
 
     # Many runs at once can hit the account's per-minute limits. On a "too many
     # requests" or "overloaded" error, the client waits and tries again.
-    client = anthropic.Anthropic(max_retries=10)
+    client = anthropic.Anthropic(max_retries=10, timeout=REQUEST_TIMEOUT_SECONDS)
     try:
         records = run_tasks(client, tasks, config, args.repeats, args.budget, out, args.workers)
     except ValueError as error:

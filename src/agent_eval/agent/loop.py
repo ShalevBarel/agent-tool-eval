@@ -49,6 +49,11 @@ TOOLS = {
     "submit_answer": submit_answer,
 }
 
+# Seconds the client waits for one response. Without a timeout of its own, the
+# client refuses a request that doesn't stream once max_tokens is above about
+# 21000, since such a response might take more than ten minutes.
+REQUEST_TIMEOUT_SECONDS = 15 * 60
+
 
 @dataclass(frozen=True)
 class AgentConfig:
@@ -61,14 +66,15 @@ class AgentConfig:
         tool_specs: Which tool descriptions the model sees, a key of
             TOOL_SPEC_SETS: "basic" or "improved".
         max_turns: The most requests to the model in one run.
-        max_tokens: The most tokens in one response, thinking included.
+        max_tokens: The most tokens in one response, thinking included. A
+            client needs REQUEST_TIMEOUT_SECONDS to send more than about 21000.
     """
 
     model: str
     effort: str
     tool_specs: str = "basic"
     max_turns: int = 30
-    max_tokens: int = 16000
+    max_tokens: int = 32000
 
 
 @dataclass(frozen=True)

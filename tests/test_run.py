@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from agent_eval.agent import run
+from agent_eval.agent.loop import REQUEST_TIMEOUT_SECONDS
 from agent_eval.env.tasks import Task, save_tasks
 from agent_eval.solver import Solution
 from fake_client import FakeClient, response, text, tool_use
@@ -27,9 +28,19 @@ def tasks_file(city, tmp_path) -> Path:
     return path
 
 
-def use_fake_client(responses, monkeypatch):
-    """Make the script use a fake client with these responses instead of the real API."""
-    monkeypatch.setattr(run.anthropic, "Anthropic", lambda: FakeClient(responses))
+def use_fake_client(responses, monkeypatch) -> dict:
+    """Make the script use a fake client with these responses instead of the real API.
+
+    Returns the options the script gives the client, once it makes one.
+    """
+    options = {}
+
+    def make_client(**given):
+        options.update(given)
+        return FakeClient(responses)
+
+    monkeypatch.setattr(run.anthropic, "Anthropic", make_client)
+    return options
 
 
 def submit(order_ids: list[str], **tokens):
@@ -90,6 +101,12 @@ def test_uses_the_config_and_prices_its_model(tasks_file, monkeypatch, capsys):
     config = str(CONFIGS / "sonnet-low.toml")
     run.main(["--task", "task-two", "--tasks-file", str(tasks_file), "--config", config])
     assert "cost     $0.0700\n" in capsys.readouterr().out
+
+
+def test_gives_the_client_a_timeout(tasks_file, monkeypatch):
+    options = use_fake_client([submit(["o1", "o2"])], monkeypatch)
+    run.main(["--task", "task-two", "--tasks-file", str(tasks_file)])
+    assert options["timeout"] == REQUEST_TIMEOUT_SECONDS
 
 
 def test_an_unknown_task(tasks_file, monkeypatch):
