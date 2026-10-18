@@ -31,7 +31,11 @@ def resample_indices(groups: np.ndarray, n_resamples: int, rng: np.random.Genera
         An integer array with one row per resample and one column per
         position, ordered group by group.
     """
-    raise NotImplementedError
+    columns = []
+    for group in np.unique(groups):
+        members = np.flatnonzero(groups == group)
+        columns.append(rng.choice(members, size=(n_resamples, len(members))))
+    return np.concatenate(columns, axis=1)
 
 
 def ratio_estimate(
@@ -45,4 +49,8 @@ def ratio_estimate(
     95%. With correct answers over runs, this is the success rate; with cost
     over correct answers, the cost per correct answer.
     """
-    raise NotImplementedError
+    value = numerators.sum() / denominators.sum()
+    ratios = numerators[indices].sum(axis=1) / denominators[indices].sum(axis=1)
+    tail = 100 * (1 - level) / 2
+    low, high = np.percentile(ratios, [tail, 100 - tail])
+    return Estimate(float(value), float(low), float(high))
