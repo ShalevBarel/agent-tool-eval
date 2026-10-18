@@ -12,7 +12,7 @@ def task_probabilities(
     the tasks out toward chances near 0 and near 1, so tasks differ a lot,
     and the runs of one task tend to agree.
     """
-    raise NotImplementedError
+    return rng.beta(mean * concentration, (1-mean) * concentration, size=size)
 
 
 def simulate_correct(
@@ -24,4 +24,4 @@ def simulate_correct(
     task i is correct with chance probabilities[i], independently of the
     other runs.
     """
-    raise NotImplementedError
+    return (rng.random((len(probabilities), repeats)) < probabilities[:, np.newaxis]).astype(int)
