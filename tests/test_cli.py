@@ -153,3 +153,27 @@ def test_summary_of_a_folder(tasks_file, tmp_path, monkeypatch, capsys):
     assert printed.index("a.jsonl") < printed.index("b.jsonl")
     assert "notes.txt" not in printed
     assert printed.count("\nall          2        2   100%") == 2
+
+
+def test_report_of_a_folder(tasks_file, tmp_path, monkeypatch, capsys):
+    folder = tmp_path / "runs"
+    use_fake_client([submit(True, ["o2", "o1", "o3"]), submit(False, [])], monkeypatch)
+    run(tasks_file, "--budget", "1", "--out", str(folder / "good.jsonl"))
+    use_fake_client([submit(True, ["o1"]), submit(False, [])], monkeypatch)
+    run(tasks_file, "--budget", "1", "--out", str(folder / "bad.jsonl"))
+    capsys.readouterr()
+    cli.main(["report", str(folder)])
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[1].split()[:3] == ["good", "2", "100.0%"]
+    assert lines[2].split()[:3] == ["bad", "2", "50.0%"]
+
+
+def test_report_refuses_logs_of_different_tasks(tasks_file, tmp_path, monkeypatch, capsys):
+    folder = tmp_path / "runs"
+    use_fake_client([submit(True, ["o2", "o1", "o3"]), submit(False, [])], monkeypatch)
+    run(tasks_file, "--budget", "1", "--out", str(folder / "good.jsonl"))
+    use_fake_client([submit(False, [])], monkeypatch)
+    run(tasks_file, "--budget", "1", "--sample", "1", "--out", str(folder / "bad.jsonl"))
+    with pytest.raises(SystemExit):
+        cli.main(["report", str(folder)])
+    assert "ran different tasks" in capsys.readouterr().err
