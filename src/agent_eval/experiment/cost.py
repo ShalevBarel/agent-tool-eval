@@ -20,7 +20,6 @@ class Price:
     cache_read: float
 
 
-# Dollars per million tokens, as (input, output). Thinking is billed as output.
 PRICES = {
     "claude-haiku-5-5": Price(input=0.10, output=0.50, cache_write=0.125, cache_read=0.01),
     "claude-sonnet-5-5": Price(input=2.00, output=10.00, cache_write=2.50, cache_read=0.10),

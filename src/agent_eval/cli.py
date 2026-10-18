@@ -3,6 +3,7 @@
     uv run agent-eval run configs/haiku-medium.toml --budget 2
     uv run agent-eval summary runs/haiku-medium.jsonl
     uv run agent-eval summary runs
+    uv run agent-eval report runs
 
 The API key is read from the ANTHROPIC_API_KEY environment variable.
 """
@@ -13,6 +14,8 @@ from pathlib import Path
 import anthropic
 
 from agent_eval.agent.loop import REQUEST_TIMEOUT_SECONDS
+from agent_eval.analysis.report import report
+from agent_eval.analysis.tables import load_runs
 from agent_eval.env.tasks import load_tasks
 from agent_eval.experiment.configs import load_config
 from agent_eval.experiment.run_log import load_records
@@ -20,7 +23,7 @@ from agent_eval.experiment.run_tasks import choose_tasks, run_tasks, show_summar
 
 
 def main(argv: list[str] | None = None) -> None:
-    """Run a configuration on the tasks, or summarize run logs."""
+    """Run a configuration on the tasks, or summarize or report on run logs."""
     parser = argparse.ArgumentParser(prog="agent-eval", description="Evaluate a tool-using agent.")
     commands = parser.add_subparsers(dest="command", required=True)
 
@@ -42,9 +45,22 @@ def main(argv: list[str] | None = None) -> None:
     summary = commands.add_parser("summary", help="print the results of run logs")
     summary.add_argument("logs", type=Path, nargs="+", help="run logs, or folders of them")
 
+    report_parser = commands.add_parser(
+        "report", help="print every configuration's results with confidence intervals"
+    )
+    report_parser.add_argument("logs", type=Path, nargs="+", help="run logs, or folders of them")
+    report_parser.add_argument(
+        "--seed", type=int, default=0, help="seed of the resamples (default: 0)"
+    )
+
     args = parser.parse_args(argv)
     if args.command == "run":
         run_command(parser, args)
+    elif args.command == "report":
+        try:
+            print(report(load_runs(log_paths(args.logs)), seed=args.seed))
+        except ValueError as error:
+            parser.error(str(error))
     else:
         for path in log_paths(args.logs):
             print(f"{path}")
