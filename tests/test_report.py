@@ -1,7 +1,9 @@
+import numpy as np
 import pandas as pd
 import pytest
 
-from agent_eval.analysis.report import estimates, report
+from agent_eval.analysis.compare import holm, tasks_needed
+from agent_eval.analysis.report import COMPARISONS, comparisons, estimates, report
 
 DIFFICULTIES = {"task-000": "easy", "task-001": "easy", "task-002": "hard", "task-003": "hard"}
 
@@ -72,3 +74,56 @@ def test_report_shows_success_by_difficulty(runs):
 
 def test_report_repeats_with_the_same_seed(runs):
     assert report(runs, n_resamples=200, seed=1) == report(runs, n_resamples=200, seed=1)
+
+
+def test_comparisons_success_difference_and_cost_ratio(runs):
+    [comparison] = comparisons(runs, [("good", "bad")], n_resamples=200)
+    assert (comparison.a, comparison.b) == ("good", "bad")
+    assert comparison.success_difference.value == pytest.approx(7 / 8 - 3 / 8)
+    assert comparison.cost_ratio.value == pytest.approx((0.08 / 7) / (0.08 / 3))
+
+
+def test_comparisons_intervals_hold_the_values(runs):
+    [comparison] = comparisons(runs, [("good", "bad")], n_resamples=200)
+    for estimate in (comparison.success_difference, comparison.cost_ratio):
+        assert estimate.low <= estimate.value <= estimate.high
+
+
+def test_comparisons_test_the_per_task_differences(runs):
+    # Per task, "good" minus "bad" is 0, 1/2, 1/2 and 1: three positive
+    # differences, so p is 2/8, as in the sign-flip test's own tests.
+    [comparison] = comparisons(runs, [("good", "bad")], n_resamples=200)
+    assert comparison.p_value == pytest.approx(0.25, abs=0.03)
+    assert comparison.holm_p_value == comparison.p_value
+    assert comparison.tasks_needed == tasks_needed(np.std([0, 0.5, 0.5, 1], ddof=1), 0.05)
+
+
+def test_comparisons_adjust_for_every_comparison(runs):
+    found = comparisons(runs, [("good", "bad"), ("bad", "good")], n_resamples=200)
+    assert [comparison.a for comparison in found] == ["good", "bad"]
+    assert found[1].success_difference.value == pytest.approx(-0.5)
+    p_values = [comparison.p_value for comparison in found]
+    assert [comparison.holm_p_value for comparison in found] == holm(p_values)
+
+
+def test_comparisons_leave_out_configurations_not_in_the_runs(runs):
+    found = comparisons(runs, [("good", "missing"), ("good", "bad")], n_resamples=200)
+    assert [(comparison.a, comparison.b) for comparison in found] == [("good", "bad")]
+    assert comparisons(runs, n_resamples=10) == []
+
+
+def test_comparisons_planned_by_default():
+    assert COMPARISONS[0] == ("sonnet-low", "haiku-high")
+    assert len(COMPARISONS) == len(set(COMPARISONS)) == 5
+
+
+def test_report_shows_the_comparisons(runs):
+    lines = report(runs, n_resamples=200, pairs=[("good", "bad")]).splitlines()
+    row = next(line for line in lines if line.startswith("good vs bad"))
+    assert row.split()[3:5] == ["+50.0", "pts"]
+    cost_row = [line for line in lines if line.startswith("good vs bad")][1]
+    assert cost_row.split()[3] == "0.43x"
+
+
+def test_report_without_comparisons(runs):
+    assert "a vs b" not in report(runs, n_resamples=200)
