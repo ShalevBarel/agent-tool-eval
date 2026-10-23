@@ -1,5 +1,6 @@
 """Paired comparisons of two configurations: a test, its correction for many tests, and power."""
 import math
+from statistics import NormalDist
 
 import numpy as np
 
@@ -66,4 +67,5 @@ def tasks_needed(sd: float, difference: float, alpha: float = 0.05, power: float
     uses the normal approximation for a two-sided test at level alpha:
     ((z of 1 - alpha/2 + z of power) * sd / difference) squared, rounded up.
     """
-    raise NotImplementedError
+    z = NormalDist().inv_cdf
+    return math.ceil(((z(1 - alpha / 2) + z(power)) * sd / difference) ** 2)
