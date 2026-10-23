@@ -49,7 +49,14 @@ def holm(p_values: list[float]) -> list[float]:
     adjusted p-value is at most alpha keeps the chance of any false
     rejection at most alpha.
     """
-    raise NotImplementedError
+    m = len(p_values)
+    order = sorted(range(m), key=lambda i: p_values[i])
+    adjusted = [0.0] * m
+    largest = 0.0
+    for rank, i in enumerate(order):
+        largest = max(largest, (m - rank) * p_values[i])
+        adjusted[i] = min(1.0, largest)
+    return adjusted
 
 
 def tasks_needed(sd: float, difference: float, alpha: float = 0.05, power: float = 0.8) -> int:
