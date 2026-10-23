@@ -1,4 +1,5 @@
 """Paired comparisons of two configurations: a test, its correction for many tests, and power."""
+import math
 
 import numpy as np
 
@@ -34,7 +35,9 @@ def mcnemar_exact(only_a: int, only_b: int) -> float:
     is binomial with n = only_a + only_b and p = 1/2. The p-value is twice
     the chance of a count at most min(only_a, only_b), and at most 1.
     """
-    raise NotImplementedError
+    n = only_a + only_b
+    tail = sum(math.comb(n, k) for k in range(min(only_a, only_b) + 1)) / 2**n
+    return min(1.0, 2*tail)
 
 
 def holm(p_values: list[float]) -> list[float]:
