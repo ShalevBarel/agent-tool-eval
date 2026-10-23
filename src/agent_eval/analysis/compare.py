@@ -1,4 +1,5 @@
 """Paired comparisons of two configurations: a test, its correction for many tests, and power."""
+
 import math
 from statistics import NormalDist
 
@@ -38,7 +39,7 @@ def mcnemar_exact(only_a: int, only_b: int) -> float:
     """
     n = only_a + only_b
     tail = sum(math.comb(n, k) for k in range(min(only_a, only_b) + 1)) / 2**n
-    return min(1.0, 2*tail)
+    return min(1.0, 2 * tail)
 
 
 def holm(p_values: list[float]) -> list[float]:
