@@ -46,7 +46,7 @@ def main(argv: list[str] | None = None) -> None:
     summary.add_argument("logs", type=Path, nargs="+", help="run logs, or folders of them")
 
     report_parser = commands.add_parser(
-        "report", help="print every configuration's results with confidence intervals"
+        "report", help="print every configuration's results and paired comparisons, with intervals"
     )
     report_parser.add_argument("logs", type=Path, nargs="+", help="run logs, or folders of them")
     report_parser.add_argument(

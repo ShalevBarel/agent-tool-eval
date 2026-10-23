@@ -38,6 +38,29 @@ def resample_indices(groups: np.ndarray, n_resamples: int, rng: np.random.Genera
     return np.concatenate(columns, axis=1)
 
 
+def resampled_ratios(
+    numerators: np.ndarray, denominators: np.ndarray, indices: np.ndarray
+) -> np.ndarray:
+    """Return the ratio of the sums in every resample, one per row of indices.
+
+    Each row of indices names the positions of one resample, and its ratio
+    is the sum of their numerators over the sum of their denominators.
+    """
+    return numerators[indices].sum(axis=1) / denominators[indices].sum(axis=1)
+
+
+def percentile_estimate(value: float, resampled: np.ndarray, level: float = 0.95) -> Estimate:
+    """Return value with a percentile interval: the middle level of its resampled values.
+
+    resampled holds the same statistic computed on every resample, such as
+    one success rate per resample. At level 0.95 the interval runs from
+    their 2.5th percentile to their 97.5th.
+    """
+    tail = 100 * (1 - level) / 2
+    low, high = np.percentile(resampled, [tail, 100 - tail])
+    return Estimate(float(value), float(low), float(high))
+
+
 def ratio_estimate(
     numerators: np.ndarray, denominators: np.ndarray, indices: np.ndarray, level: float = 0.95
 ) -> Estimate:
@@ -50,7 +73,4 @@ def ratio_estimate(
     over correct answers, the cost per correct answer.
     """
     value = numerators.sum() / denominators.sum()
-    ratios = numerators[indices].sum(axis=1) / denominators[indices].sum(axis=1)
-    tail = 100 * (1 - level) / 2
-    low, high = np.percentile(ratios, [tail, 100 - tail])
-    return Estimate(float(value), float(low), float(high))
+    return percentile_estimate(value, resampled_ratios(numerators, denominators, indices), level)
