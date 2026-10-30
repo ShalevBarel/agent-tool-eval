@@ -4,6 +4,7 @@
     uv run agent-eval summary runs/haiku-medium.jsonl
     uv run agent-eval summary runs
     uv run agent-eval report runs
+    uv run agent-eval plots runs --out figures
 
 The API key is read from the ANTHROPIC_API_KEY environment variable.
 """
@@ -14,6 +15,7 @@ from pathlib import Path
 import anthropic
 
 from agent_eval.agent.loop import REQUEST_TIMEOUT_SECONDS
+from agent_eval.analysis.plots import save_plots
 from agent_eval.analysis.report import report
 from agent_eval.analysis.tables import load_runs
 from agent_eval.env.tasks import load_tasks
@@ -23,7 +25,7 @@ from agent_eval.experiment.run_tasks import choose_tasks, run_tasks, show_summar
 
 
 def main(argv: list[str] | None = None) -> None:
-    """Run a configuration on the tasks, or summarize or report on run logs."""
+    """Run a configuration on the tasks, or summarize, report on or plot run logs."""
     parser = argparse.ArgumentParser(prog="agent-eval", description="Evaluate a tool-using agent.")
     commands = parser.add_subparsers(dest="command", required=True)
 
@@ -53,6 +55,13 @@ def main(argv: list[str] | None = None) -> None:
         "--seed", type=int, default=0, help="seed of the resamples (default: 0)"
     )
 
+    plots = commands.add_parser("plots", help="draw the results of run logs as PNG files")
+    plots.add_argument("logs", type=Path, nargs="+", help="run logs, or folders of them")
+    plots.add_argument(
+        "--out", type=Path, default=Path("figures"), help="folder of the plots (default: figures)"
+    )
+    plots.add_argument("--seed", type=int, default=0, help="seed of the resamples (default: 0)")
+
     args = parser.parse_args(argv)
     if args.command == "run":
         run_command(parser, args)
@@ -61,6 +70,13 @@ def main(argv: list[str] | None = None) -> None:
             print(report(load_runs(log_paths(args.logs)), seed=args.seed))
         except ValueError as error:
             parser.error(str(error))
+    elif args.command == "plots":
+        try:
+            paths = save_plots(load_runs(log_paths(args.logs)), args.out, seed=args.seed)
+        except ValueError as error:
+            parser.error(str(error))
+        for path in paths:
+            print(path)
     else:
         for path in log_paths(args.logs):
             print(f"{path}")

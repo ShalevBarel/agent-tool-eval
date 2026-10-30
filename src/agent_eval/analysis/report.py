@@ -107,6 +107,40 @@ def estimates(
     return dict(sorted(results.items(), key=lambda item: -item[1]["success"].value))
 
 
+def estimates_by_difficulty(
+    runs: pd.DataFrame, n_resamples: int = N_RESAMPLES, seed: int = 0
+) -> dict[str, dict[str, Estimate]]:
+    """Return each configuration's success rate on each difficulty, with intervals.
+
+    The intervals of a difficulty resample its own tasks, and every
+    configuration gets the same resamples. Difficulties come easiest first,
+    and configurations in alphabetical order.
+
+    Example:
+        {"haiku-high": {"easy": Estimate(1.0, 1.0, 1.0),
+                        "medium": Estimate(0.95, 0.91, 0.98),
+                        "hard": Estimate(0.83, 0.75, 0.91)}}
+
+    Raises:
+        ValueError: If two configurations ran different tasks.
+    """
+    totals = task_totals(runs)
+    tasks = shared_tasks(totals)
+    rng = np.random.default_rng(seed)
+    results = {config: {} for config in sorted(totals["config"].unique())}
+    for level in LEVELS:
+        count = int((tasks["difficulty"] == level).sum())
+        if count == 0:
+            continue
+        indices = rng.choice(count, size=(n_resamples, count))
+        for config, rows in totals.groupby("config"):
+            rows = rows[rows["difficulty"] == level]
+            results[config][level] = ratio_estimate(
+                rows["correct"].to_numpy(), rows["runs"].to_numpy(), indices, LEVEL
+            )
+    return results
+
+
 def comparisons(
     runs: pd.DataFrame,
     pairs: list[tuple[str, str]] = COMPARISONS,

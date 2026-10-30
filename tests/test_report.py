@@ -3,7 +3,13 @@ import pandas as pd
 import pytest
 
 from agent_eval.analysis.compare import holm, tasks_needed
-from agent_eval.analysis.report import COMPARISONS, comparisons, estimates, report
+from agent_eval.analysis.report import (
+    COMPARISONS,
+    comparisons,
+    estimates,
+    estimates_by_difficulty,
+    report,
+)
 
 DIFFICULTIES = {"task-000": "easy", "task-001": "easy", "task-002": "hard", "task-003": "hard"}
 
@@ -55,6 +61,38 @@ def test_estimates_need_the_same_tasks_for_every_configuration(runs):
     fewer = runs[~((runs["config"] == "bad") & (runs["task_id"] == "task-003"))]
     with pytest.raises(ValueError, match="ran different tasks"):
         estimates(fewer, n_resamples=10)
+
+
+def test_estimates_by_difficulty_success_rates(runs):
+    results = estimates_by_difficulty(runs, n_resamples=200)
+    assert results["good"]["easy"].value == pytest.approx(4 / 4)
+    assert results["good"]["hard"].value == pytest.approx(3 / 4)
+    assert results["bad"]["easy"].value == pytest.approx(3 / 4)
+    assert results["bad"]["hard"].value == pytest.approx(0 / 4)
+
+
+def test_estimates_by_difficulty_intervals_hold_the_values(runs):
+    for by_level in estimates_by_difficulty(runs, n_resamples=200).values():
+        for estimate in by_level.values():
+            assert estimate.low <= estimate.value <= estimate.high
+
+
+def test_estimates_by_difficulty_resample_only_the_tasks_of_the_difficulty(runs):
+    # "good" is always right on the easy tasks, so every resample of them is too.
+    easy = estimates_by_difficulty(runs, n_resamples=200)["good"]["easy"]
+    assert (easy.low, easy.high) == (1, 1)
+
+
+def test_estimates_by_difficulty_order(runs):
+    results = estimates_by_difficulty(runs, n_resamples=200)
+    assert list(results) == ["bad", "good"]
+    assert list(results["good"]) == ["easy", "hard"]
+
+
+def test_estimates_by_difficulty_need_the_same_tasks_for_every_configuration(runs):
+    fewer = runs[~((runs["config"] == "bad") & (runs["task_id"] == "task-003"))]
+    with pytest.raises(ValueError, match="ran different tasks"):
+        estimates_by_difficulty(fewer, n_resamples=10)
 
 
 def test_report_lists_every_configuration_best_first(runs):
