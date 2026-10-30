@@ -168,6 +168,20 @@ def test_report_of_a_folder(tasks_file, tmp_path, monkeypatch, capsys):
     assert lines[2].split()[:3] == ["bad", "2", "50.0%"]
 
 
+def test_plots_of_a_folder(tasks_file, tmp_path, monkeypatch, capsys):
+    folder = tmp_path / "runs"
+    use_fake_client([submit(True, ["o2", "o1", "o3"]), submit(False, [])], monkeypatch)
+    run(tasks_file, "--budget", "1", "--out", str(folder / "good.jsonl"))
+    use_fake_client([submit(True, ["o1"]), submit(False, [])], monkeypatch)
+    run(tasks_file, "--budget", "1", "--out", str(folder / "bad.jsonl"))
+    capsys.readouterr()
+    out = tmp_path / "figures"
+    cli.main(["plots", str(folder), "--out", str(out)])
+    printed = capsys.readouterr().out.splitlines()
+    assert printed == [str(out / "cost-vs-success.png"), str(out / "success-by-difficulty.png")]
+    assert all(Path(path).read_bytes().startswith(b"\x89PNG") for path in printed)
+
+
 def test_report_refuses_logs_of_different_tasks(tasks_file, tmp_path, monkeypatch, capsys):
     folder = tmp_path / "runs"
     use_fake_client([submit(True, ["o2", "o1", "o3"]), submit(False, [])], monkeypatch)
